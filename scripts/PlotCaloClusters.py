@@ -6,9 +6,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-df = pd.read_hdf('./DAOD_EXOT3.08548071._000001.pool.root.1.h5','caloclusters')
+df = pd.read_hdf('/global/project/projectdirs/das/wbhimji/RPVSusyJetLearn//DAOD_EXOT3.08548071._000001.pool.root.1.h5','caloclusters')
 
-plt.imshow(df['histo'][2],interpolation='none')
+
+
+plt.figure(figsize=(30,30))
+plt.imshow(np.log10(df['histo'][33]),interpolation='none')
+
 plt.colorbar()
 
 

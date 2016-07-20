@@ -99,6 +99,7 @@ def build_layers(input_var,
     
 
     conv_kwargs = dict(num_filters=num_filters, filter_size=(3,3), pad=1, nonlinearity=nonlinearity, W=w_init)
+    
     #eqn for reference: new_im_shape = (im_shape + 2*pad - filt_size ) / stride +1
     
     #shape: 1,100,100
