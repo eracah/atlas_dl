@@ -13,41 +13,58 @@ import os
 
 
 
-def load_data(path='/global/project/projectdirs/das/wbhimji/RPVSusyJetLearn/',
-              bg_file='jj_DAOD_EXOT3.h5',
-              sig_file='DAOD_EXOT3.08548071._000001.pool.root.1.h5',
-              group_name='caloclusters',
-              num_events=30,
-              preprocess=True,
-              dataset_name='histo'):
+def load_data(path='/global/project/projectdirs/das/wbhimji/',
+    bg_file='mc15_13TeV.361023.Pythia8EvtGen_A14NNPDF23LO_jetjet_JZ3W.merge.DAOD_EXOT3.e3668_s2576_s2132_r7728_r7676_p2613/DAOD_EXOT3.08204445._000001.pool.root.1',
+    sig_file='mc15_13TeV.403550.MadGraphPythia8EvtGen_A14NNPDF23LO_GG_RPV10_700_450.merge.DAOD_EXOT3.e5079_a766_a821_r7676_p2646/DAOD_EXOT3.08548071._000001.pool.root.1',
+    group_name='CollectionTree',
+    branches=['CaloCalTopoClustersAuxDyn.calPhi', 'CaloCalTopoClustersAuxDyn.calEta','CaloCalTopoClustersAuxDyn.calE'],
+    num_events=100,
+    preprocess=True,
+    bins=10,
+    dataset_name='histo', 
+    type='root'):
 
     bg_path = os.path.join(path, bg_file)
     sig_path = os.path.join(path, sig_file)
 
-    bgdf = pd.read_hdf(bg_path, group_name)
-    sigdf = pd.read_hdf(sig_path, group_name)
-
     assert num_events % 2 == 0, "why an odd number for num_events?!, even please"
     num_each = num_events / 2
 
+    if type == 'hdf':
+        bgdf = pd.read_hdf(bg_path, group_name)
+        sigdf = pd.read_hdf(sig_path, group_name)
+        x_bg = bgdf[dataset_name][:num_each]
+        x_sig = sigdf[dataset_name][:num_each]
+        #background first
+        x_concat = np.hstack((x_bg, x_sig))
+        dim_x, dim_y = x_bg[0].shape
+        x = np.zeros((num_events ,dim_x, dim_y ))
+        for i in range(num_events):
+            x[i] = x_concat[i]
+        # add a channel size of 1 as a place holder
+        x = np.expand_dims(x,axis=1)
+        
+    if type == 'root':
+        sys.path.append('/global/homes/w/wbhimji/cori-envs/nersc-rootpy/lib/python2.7/site-packages/')
+        import ROOT
+        import rootpy
+        import root_numpy as rnp
+        bgarray = rnp.root2array(bg_path, treename=group_name,branches=branches, start=0, stop=num_each)
+        bgdf = pd.DataFrame.from_records(bgarray)
+        sigarray = rnp.root2array(sig_path, treename=group_name, branches=branches, start=0, stop=num_each)
+        sigdf = pd.DataFrame.from_records(sigarray)
+        x_bg = np.zeros((num_each,1,bins, bins ))
+        x_sig = np.zeros((num_each,1,bins, bins ))
+        #num events is now num each
+        for i in range(num_each):
+            phi, eta, E =  bgdf['CaloCalTopoClustersAuxDyn.calPhi'][i],bgdf['CaloCalTopoClustersAuxDyn.calEta'][i],                bgdf['CaloCalTopoClustersAuxDyn.calE'][i]
+            x_bg[i] = np.histogram2d(phi,eta, bins=bins, weights=E, range=[[-3.14, 3.14],[0., 2.]])[0]
+            phi, eta, E =  sigdf['CaloCalTopoClustersAuxDyn.calPhi'][i],sigdf['CaloCalTopoClustersAuxDyn.calEta'][i],                sigdf['CaloCalTopoClustersAuxDyn.calE'][i]
+            x_sig[i] = np.histogram2d(phi,eta, bins=bins, weights=E, range=[[-3.14, 3.14],[0., 2.]])[0]
 
-    x_bg = bgdf[dataset_name][:num_each]
-
-
-    x_sig = sigdf[dataset_name][:num_each]
-
-    #background first
-    x_concat = np.hstack((x_bg, x_sig))
-
-    dim_x, dim_y = x_bg[0].shape
-
-    x = np.zeros((num_events ,dim_x, dim_y ))
-
-    for i in range(num_events):
-        x[i] = x_concat[i]
-
-    # add a channel size of 1 as a place holder
-    x = np.expand_dims(x,axis=1)
+        #background first
+        x = np.vstack((x_bg, x_sig))      
+    
     # 1 means signal, 0 means background
     y = np.zeros((num_events,)).astype('int32')
     #make the last half signal label
@@ -70,7 +87,7 @@ def load_data(path='/global/project/projectdirs/das/wbhimji/RPVSusyJetLearn/',
     if preprocess:
         '''a type of sparse preprocessing, which scales everything between -1 and 1 without losing sparsity'''
         #only calculate the statistic using training set
-        max_abs=np.abs(x_tr).max(axis=(0,1,2))
+        max_abs=np.abs(x_tr).max(axis=(0,1,2,3))
         
         #then scale all sets
         x_tr /= max_abs
@@ -85,13 +102,9 @@ def load_data(path='/global/project/projectdirs/das/wbhimji/RPVSusyJetLearn/',
 
 
 
-if __name__ == "__main__":
-    data = load_data()
-
-    x,y,xv,yv,x_te,y_te = data
-
-    plt.imshow(x[6], interpolation='none')
-
+data = load_data()
+x,y,xv,yv,x_te,y_te = data
+plt.imshow(x[8][0], interpolation='none')
 
 
 
