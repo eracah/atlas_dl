@@ -18,9 +18,9 @@ def load_data(path='/global/project/projectdirs/das/wbhimji/',
     sig_file='mc15_13TeV.403550.MadGraphPythia8EvtGen_A14NNPDF23LO_GG_RPV10_700_450.merge.DAOD_EXOT3.e5079_a766_a821_r7676_p2646/DAOD_EXOT3.08548071._000001.pool.root.1',
     group_name='CollectionTree',
     branches=['CaloCalTopoClustersAuxDyn.calPhi', 'CaloCalTopoClustersAuxDyn.calEta','CaloCalTopoClustersAuxDyn.calE'],
-    num_events=100,
+    num_events=1000,
     preprocess=True,
-    bins=10,
+    bins=100,
     dataset_name='histo', 
     type='root'):
 
