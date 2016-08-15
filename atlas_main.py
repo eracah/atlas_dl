@@ -19,15 +19,25 @@ weight_decay = 0
 num_filters = 128
 num_fc_units = 100
 dropout_p = 0
+parser = argparse.ArgumentParser()
+parser.add_argument('-e', '--epochs', type=int, default=10,
+    help='number of epochs for training')
 
+parser.add_argument('-l', '--learn_rate', default=0.0001, type=float,
+    help='the learning rate for the network')
 
+parser.add_argument('-n', '--num_events', default=40, type=int,
+    help='number of total images')
 
+args = parser.parse_args()
+num_epochs = args.epochs
+learning_rate = args.learn_rate
+num_events = args.num_events
 
 
 run_dir = create_run_dir()
 
 dataset = load_data(num_events=50)
-
 
 '''set params'''
 network_kwargs = {'input_shape':(None,1,100,100), 'learning_rate': learning_rate, 'dropout_p': dropout_p, 
