@@ -102,21 +102,10 @@ def load_data(path='/global/project/projectdirs/das/wbhimji/',
 
 
 
-data = load_data()
-x,y,xv,yv,x_te,y_te = data
-plt.imshow(x[8][0], interpolation='none')
-
-
-
-a = np.random.random((30,100,100))
-
-
-
-b=np.expand_dims(a,axis=1)
-
-
-
-b.shape
+if __name__=="__main__":
+    data = load_data()
+    x,y,xv,yv,x_te,y_te = data
+    plt.imshow(x[8][0], interpolation='none')
 
 
 
