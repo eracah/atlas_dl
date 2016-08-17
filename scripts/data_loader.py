@@ -13,9 +13,9 @@ import os
 
 
 
-def load_data(path='/global/project/projectdirs/das/wbhimji/',
-    bg_file='mc15_13TeV.361023.Pythia8EvtGen_A14NNPDF23LO_jetjet_JZ3W.merge.DAOD_EXOT3.e3668_s2576_s2132_r7728_r7676_p2613/DAOD_EXOT3.08204445._000001.pool.root.1',
-    sig_file='mc15_13TeV.403550.MadGraphPythia8EvtGen_A14NNPDF23LO_GG_RPV10_700_450.merge.DAOD_EXOT3.e5079_a766_a821_r7676_p2646/DAOD_EXOT3.08548071._000001.pool.root.1',
+def load_data(
+    bg_path = [line.rstrip() for line in open('../config/BgFileListAug16.txt')],
+    sig_path=[line.rstrip() for line in open('../config/SignalFileListAug16.txt')],
     group_name='CollectionTree',
     branches=['CaloCalTopoClustersAuxDyn.calPhi', 'CaloCalTopoClustersAuxDyn.calEta','CaloCalTopoClustersAuxDyn.calE'],
     num_events=1000,
@@ -23,10 +23,7 @@ def load_data(path='/global/project/projectdirs/das/wbhimji/',
     bins=100,
     dataset_name='histo', 
     type='root'):
-
-    bg_path = os.path.join(path, bg_file)
-    sig_path = os.path.join(path, sig_file)
-
+  
     assert num_events % 2 == 0, "why an odd number for num_events?!, even please"
     num_each = num_events / 2
 
@@ -58,9 +55,9 @@ def load_data(path='/global/project/projectdirs/das/wbhimji/',
         #num events is now num each
         for i in range(num_each):
             phi, eta, E =  bgdf['CaloCalTopoClustersAuxDyn.calPhi'][i],bgdf['CaloCalTopoClustersAuxDyn.calEta'][i],                bgdf['CaloCalTopoClustersAuxDyn.calE'][i]
-            x_bg[i] = np.histogram2d(phi,eta, bins=bins, weights=E, range=[[-3.14, 3.14],[0., 2.]])[0]
+            x_bg[i] = np.histogram2d(phi,eta, bins=bins, weights=E, range=[[-3.14, 3.14],[-2.5, 2.5]])[0]
             phi, eta, E =  sigdf['CaloCalTopoClustersAuxDyn.calPhi'][i],sigdf['CaloCalTopoClustersAuxDyn.calEta'][i],                sigdf['CaloCalTopoClustersAuxDyn.calE'][i]
-            x_sig[i] = np.histogram2d(phi,eta, bins=bins, weights=E, range=[[-3.14, 3.14],[0., 2.]])[0]
+            x_sig[i] = np.histogram2d(phi,eta, bins=bins, weights=E, range=[[-3.14, 3.14],[-2.5, 2.5]])[0]
 
         #background first
         x = np.vstack((x_bg, x_sig))      
@@ -105,9 +102,5 @@ def load_data(path='/global/project/projectdirs/das/wbhimji/',
 if __name__=="__main__":
     data = load_data()
     x,y,xv,yv,x_te,y_te = data
-    plt.imshow(x[8][0], interpolation='none')
-
-
-
-
+    plt.imshow(np.log10(x[10][0]),extent=[-3.15, 3.15, -2.5, 2.5], interpolation='none',aspect='auto', origin='low')
 
