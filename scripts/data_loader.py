@@ -46,9 +46,9 @@ def load_data(
         import ROOT
         import rootpy
         import root_numpy as rnp
-        bgarray = rnp.root2array(bg_path, treename=group_name,branches=branches, start=0, stop=num_each)
+        bgarray = rnp.root2array(bg_path, treename=group_name,branches=branches, start=0, stop=num_each,warn_missing_tree=True)
         bgdf = pd.DataFrame.from_records(bgarray)
-        sigarray = rnp.root2array(sig_path, treename=group_name, branches=branches, start=0, stop=num_each)
+        sigarray = rnp.root2array(sig_path, treename=group_name, branches=branches, start=0, stop=num_each,warn_missing_tree=True)
         sigdf = pd.DataFrame.from_records(sigarray)
         x_bg = np.zeros((num_each,1,bins, bins ))
         x_sig = np.zeros((num_each,1,bins, bins ))
