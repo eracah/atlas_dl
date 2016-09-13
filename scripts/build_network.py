@@ -19,8 +19,6 @@ import inspect
 # if __name__ == "__main__":
 #     from data_loader import load_classification_dataset, load_detection_dataset
 
-
-
 def build_network(learning_rate=0.001,
                   weight_decay=0.00005,
                   momentum=0.9,
@@ -86,8 +84,6 @@ def build_network(learning_rate=0.001,
 
     return train_fn, val_fn, network, hyperparams
 
-
-
 def build_layers(input_var,
                  input_shape,
                  nonlinearity,
@@ -133,8 +129,6 @@ def build_layers(input_var,
     network = DenseLayer(network, num_units=2, nonlinearity=lasagne.nonlinearities.softmax) 
     
     return network
-
-
 
 def load_weights(file_path, network):
     '''grabs weights from an npz file'''
