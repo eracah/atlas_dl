@@ -1,0 +1,18 @@
+{
+  "display_name": "deeplearning_plus_root",
+  "language": "python",
+  "argv": [
+    "/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/bin/python",
+    "-m",
+    "IPython.kernel",
+    "-f",
+    "{connection_file}"],
+  "env": {
+    "PATH":"/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/bin:/global/common/cori/software/python/2.7-anaconda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/bin:/anaconda3/bin/",
+    "PYTHONPATH": "/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/bin:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python27.zip:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python2.7:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python2.7/plat-linux2:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python2.7/lib-tk:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python2.7/lib-old:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python2.7/lib-dynload:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python2.7/site-packages:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python2.7/site-packages/setuptools-23.0.0-py2.7.egg:/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/lib/python2.7/site-packages/IPython/extensions:/global/common/cori/software/root/6.06.06/lib/root",
+    "THEANORC": "/global/common/cori/software/python/2.7-anaconda/envs/deeplearning/configs/.theanorc", 
+    "MKL_NUM_THREADS": "2",
+    
+     "LD_LIBRARY_PATH": "/global/common/cori/software/root/6.06.06/lib/root"
+ }
+}
