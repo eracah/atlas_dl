@@ -1,0 +1,2 @@
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/77/af/DAOD_EXOT3.08630008._000001.pool.root.1
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/38/ae/DAOD_EXOT3.08630008._000002.pool.root.1
