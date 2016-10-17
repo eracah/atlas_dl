@@ -1,0 +1,8 @@
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/dd/bb/DAOD_EXOT3.08910363._000001.pool.root.1
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/6a/c2/DAOD_EXOT3.08910363._000002.pool.root.1
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/66/14/DAOD_EXOT3.08910363._000003.pool.root.1
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/dd/0a/DAOD_EXOT3.08910363._000004.pool.root.1
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/32/2a/DAOD_EXOT3.08910363._000005.pool.root.1
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/00/f5/DAOD_EXOT3.08910363._000006.pool.root.1
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/9f/d2/DAOD_EXOT3.08910363._000007.pool.root.1
+/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/0b/e3/DAOD_EXOT3.08910363._000008.pool.root.1
