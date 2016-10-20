@@ -1,13 +1,15 @@
-
+from __future__ import print_function
 import matplotlib; matplotlib.use("agg")
 
 
-from __future__ import print_function
+
 import functools
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
+#import pandas as pd
 import ROOT;
+import sys
+sys.path.append('/global/homes/w/wbhimji/cori-envs/nersc-rootpy/lib/python2.7/site-packages/')
 import root_numpy as rnp
 
 
@@ -17,7 +19,12 @@ import root_numpy as rnp
 
 
 #filename = '/Users/sfarrell/Atlas/xaod/mc15_13TeV.361023.Pythia8EvtGen_A14NNPDF23LO_jetjet_JZ3W.merge.DAOD_EXOT3.e3668_s2576_s2132_r7728_r7676_p2613/DAOD_EXOT3.08204445._000002.pool.root.1'
-filename = '/Users/sfarrell/Atlas/xaod/mc15_13TeV.403554.MadGraphPythia8EvtGen_A14NNPDF23LO_GG_RPV10_1000_250.merge.DAOD_EXOT3.e5079_a766_a821_r7676_p2646/DAOD_EXOT3.08548063._000001.pool.root.1'
+filename = '/global/projecta/projectdirs/atlas/atlaslocalgroupdisk/rucio/mc15_13TeV/76/71/DAOD_EXOT3.08629754._000001.pool.root.1'
+
+
+
+bg_files = [line.rstrip() for line in open('/global/project/projectdirs/das/wbhimji/RPVSusyJetLearn/atlas_dl/config/mc15_13TeV.361004.Pythia8EvtGen_A14NNPDF23LO_jetjet_JZ4.merge.DAOD_EXOT3.e3569_s2576_s2132_r7772_r7676_p2688-FileList.txt')]
+sig_files = [line.rstrip() for line in open('/global/project/projectdirs/das/wbhimji/RPVSusyJetLearn/atlas_dl/config/mc15_13TeV.403568.MadGraphPythia8EvtGen_A14NNPDF23LO_GG_RPV10_1400_850.merge.DAOD_EXOT3.e5079_a766_a821_r7676_p2669-FileList.txt')]
 
 
 
@@ -34,9 +41,9 @@ branchMap = {
 
 
 
-entries = rnp.root2array(filename, treename='CollectionTree',
-                         branches=branchMap.keys(),
-                         ) #start=0, stop=10000)
+entries = rnp.root2array(bg_files, treename='CollectionTree',
+                         branches=branchMap.keys(),warn_missing_tree=True)
+#                          start=0, stop=500000)
 entries.dtype.names = branchMap.values()
 print('Entries:', entries.size)
 
@@ -52,6 +59,8 @@ entries.dtype
 # I'm actually surprised these both work.
 print(entries[0]['FatJetPt'])
 print(entries['FatJetPt'][0])
+
+
 
 
 
@@ -80,6 +89,7 @@ print(selectedEvents)
 # Enough playing around. Let's test out the actual physics selections. The code has been put into the physics_selections module in the containing directory of this notebook.
 
 
+sys.path.append('/project/projectdirs/das/wbhimji/RPVSusyJetLearn/atlas_dl_submitter/atlas_dl/scripts/')
 from physics_selections import (select_fatjets, is_baseline_event,
                                 sum_fatjet_mass, is_signal_region_event)
 
