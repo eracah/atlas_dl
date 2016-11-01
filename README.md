@@ -10,5 +10,5 @@
 
 ## Running code from shell or bash script:
 * module load python
-* source activate deeplearning
+* module load deeplearning
 * python atlas_main.py -e \<num_epochs\> -n \<num_events\>
