@@ -9,6 +9,5 @@
 
 
 ## Running code from shell or bash script:
-* module load python
 * module load deeplearning
 * python atlas_main.py -e \<num_epochs\> -n \<num_events\>
