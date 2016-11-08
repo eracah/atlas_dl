@@ -13,7 +13,8 @@ import multiprocessing as mp
 import numpy as np
 import pandas as pd
 
-from physics_selections import select_fatjets, is_baseline_event
+from physics_selections import (select_fatjets, is_baseline_event,
+                                sum_fatjet_mass, is_signal_region_event)
 from weights import get_rpv_params, get_bkg_xsec, get_sumw
 
 class suppress_stdout_stderr(object):
@@ -50,11 +51,17 @@ def parse_args():
     add_arg = parser.add_argument
     add_arg('input_file_list', nargs='+',
             help='Text file of input files')
-    add_arg('-o', '--output-file', help='Output HDF5 file')
+    add_arg('-o', '--output-npz', help='Output compressed numpy binary file')
     add_arg('-n', '--max-events', type=int,
             help='Maximum number of events to read')
     add_arg('-p', '--num-workers', type=int, default=0,
             help='Number of concurrent worker processes')
+    add_arg('--write-clus', action='store_true',
+            help='Write cluster info to output')
+    add_arg('--write-fjets', action='store_true',
+            help='Write fat jet info to output')
+    add_arg('--write-mass', action='store_true',
+            help='Write RPV theory mass params to output')
     return parser.parse_args()
 
 def xaod_to_numpy(files, max_events=None):
@@ -78,47 +85,81 @@ def xaod_to_numpy(files, max_events=None):
     # Convert the files
     try:
         with suppress_stdout_stderr():
-            entries = rnp.root2array(files, treename='CollectionTree',
-                                     branches=branchMap.keys(), stop=max_events,
-                                     warn_missing_tree=True)
+            tree = rnp.root2array(files, treename='CollectionTree',
+                                  branches=branchMap.keys(), stop=max_events,
+                                  warn_missing_tree=True)
     except IOError as e:
         warn('root2array gave an IOError: %s' % e)
         return None
 
     # Rename the branches
-    entries.dtype.names = branchMap.values()
-    return entries
+    tree.dtype.names = branchMap.values()
+    return tree
 
 def filter_xaod_to_numpy(files, max_events=None):
     """Processes some files by converting to numpy and applying filtering"""
 
     # Convert the data to numpy
-    entries = xaod_to_numpy(files, max_events)
-    if entries is None:
+    tree = xaod_to_numpy(files, max_events)
+    if tree is None:
         return None
 
     # Get vectorized selection functions
     vec_select_fatjets = np.vectorize(select_fatjets, otypes=[np.ndarray])
     vec_select_baseline_events = np.vectorize(is_baseline_event)
+    def filter_jets(x, idx):
+        return x[idx]
+    vec_filter_jets = np.vectorize(filter_jets, otypes=[np.ndarray])
+    vec_sum_fatjet_mass = np.vectorize(sum_fatjet_mass)
+    vec_select_sr_events = np.vectorize(is_signal_region_event)
 
     # Object selection
-    selectedFatJets = vec_select_fatjets(entries['fatJetPt'], entries['fatJetEta'])
+    jetIdx = vec_select_fatjets(tree['fatJetPt'], tree['fatJetEta'])
+    fatJetPt = vec_filter_jets(tree['fatJetPt'], jetIdx)
+    fatJetEta = vec_filter_jets(tree['fatJetEta'], jetIdx)
+    fatJetPhi = vec_filter_jets(tree['fatJetPhi'], jetIdx)
+    fatJetM = vec_filter_jets(tree['fatJetM'], jetIdx)
+
     # Baseline event selection
-    baselineEvents = vec_select_baseline_events(entries['fatJetPt'], selectedFatJets)
-    print('Baseline selected events: %d / %d' % (np.sum(baselineEvents), entries.size))
+    skimIdx = vec_select_baseline_events(fatJetPt)
+    print('Baseline selected events: %d / %d' % (np.sum(skimIdx), tree.size))
 
-    return entries[baselineEvents]
+    # Calculate summed fatjet mass
+    sumFatJetM = vec_sum_fatjet_mass(fatJetM)
 
-def get_calo_image(entries, xkey='clusEta', ykey='clusPhi', wkey='clusE',
+    # Signal-region event selection
+    srIdx = vec_select_sr_events(sumFatJetM, fatJetPt, fatJetEta, None, skimIdx)
+
+    # Return results in a dict of arrays
+    return dict(tree=tree[skimIdx],
+                fatJetPt=fatJetPt[skimIdx], fatJetEta=fatJetEta[skimIdx],
+                fatJetPhi=fatJetPhi[skimIdx], fatJetM=fatJetM[skimIdx],
+                sumFatJetM=sumFatJetM[skimIdx], passSR=srIdx[skimIdx])
+
+def get_calo_image(tree, xkey='clusEta', ykey='clusPhi', wkey='clusE',
                    bins=100, xlim=[-2.5, 2.5], ylim=[-3.15, 3.15]):
     """Convert the numpy structure with calo clusters into 2D calo histograms"""
+    # Bin the data and reshape so we can concatenate along first axis into a 3D array.
     def hist2d(x, y, w):
-        return np.histogram2d(x, y, bins=bins, weights=w, range=[xlim, ylim])[0]
-    return map(hist2d, entries[xkey], entries[ykey], entries[wkey])
+        return (np.histogram2d(x, y, bins=bins, weights=w, range=[xlim, ylim])[0]
+                .reshape([1, bins, bins]))
+    hist_list = map(hist2d, tree[xkey], tree[ykey], tree[wkey])
+    return np.concatenate(hist_list)
 
-def get_meta_data(entries):
+def merge_results(dicts):
+    """Merge a list of dictionaries with numpy arrays"""
+    dicts = filter(None, dicts)
+    # First, get the list of unique keys
+    keys = set(key for d in dicts for key in d.keys())
+    result = dict()
+    for key in keys:
+        arrays = [d[key] for d in dicts]
+        result[key] = np.concatenate([d[key] for d in dicts])
+    return result
+
+def get_meta_data(tree):
     """Use the dsid to get sample metadata like xsec"""
-    dsids = entries['dsid']
+    dsids = tree['dsid']
     # Try to get RPV metadata
     try:
         mglu, mneu, xsec = np.vectorize(get_rpv_params)(dsids)
@@ -130,6 +171,8 @@ def get_meta_data(entries):
 
 def get_event_weights(xsec, mcw, sumw, lumi=36000):
     """Calculate event weights"""
+    # Need to extract the first entry of the generator weights per event
+    mcw = np.vectorize(lambda g: g[0])(mcw)
     return xsec * mcw * lumi / sumw
 
 def main():
@@ -149,43 +192,57 @@ def main():
         # Create a pool of workers
         pool = mp.Pool(processes=args.num_workers)
         # Convert to numpy structure in parallel
-        entries = pool.map(filter_xaod_to_numpy, input_files)
-        # Concatenate the results together
-        entries = np.concatenate(filter(entries))
+        task_data = pool.map(filter_xaod_to_numpy, input_files)
+        # Merge the results from each task
+        data = merge_results(task_data)
     # Sequential processing
     else:
         # Run the conversion and filter directly
-        entries = filter_xaod_to_numpy(input_files, args.max_events)
+        data = filter_xaod_to_numpy(input_files, args.max_events)
 
-    #print('Array shape and types:', entries.shape, entries.dtype)
-    if entries.shape[0] == 0:
+    #print('Array shape and types:', data.shape, data.dtype)
+    tree = data['tree']
+    if tree.shape[0] == 0:
         print('No events selected by filter. Exiting.')
         return
 
     # Get the 2D histogram
-    histos = get_calo_image(entries)
+    histos = get_calo_image(tree, bins=50)
 
     # Get sample metadata
-    mglu, mneu, xsec, sumw = get_meta_data(entries)
+    mglu, mneu, xsec, sumw = get_meta_data(tree)
 
     # Calculate the event weights
-    w = get_event_weights(xsec, entries['genWeight'], sumw)
+    w = get_event_weights(xsec, tree['genWeight'], sumw)
 
-    # Store results into pandas DF (??)
-    df = pd.DataFrame.from_records(entries)
-    df['clusHist'] = histos
-    if mglu is not None: df['mGluino'] = mglu
-    if mneu is not None: df['mNeutralino'] = mneu
-    df['xsec'] = xsec
-    df['sumw'] = sumw
-    df['w'] = w
-    print(df)
+    # Dictionary of output data
+    outputs = dict(histos=histos, weights=w, passSR=data['passSR'])
 
-    # Write results to an HDF5 file
-    if args.output_file is not None:
-        # Save only the histos for now
-        dfOut = df[['clusHist', 'w']]
-        dfOut.to_hdf(args.output_file, 'main')
+    # Addition optional outputs
+    if args.write_clus:
+        # This is a structured array. Maybe I should split it for consistency.
+        outputs['clusters'] = tree[['clusEta', 'clusPhi', 'clusE']]
+    if args.write_fjets:
+        # Write separate arrays for each variable.
+        for key in ['fatJetPt', 'fatJetEta', 'fatJetPhi', 'fatJetM']:
+            outputs[key] = data[key]
+    if args.write_mass:
+        outputs['mGlu'] = mglu
+        outputs['mNeu'] = mneu
+
+    # Print some summary information
+    passSR = data['passSR']
+    print('SR selected events: %d / %d' % (np.sum(passSR), tree.size))
+    print('SR weighted events: %f' % (np.sum(w[passSR])))
+
+    # Write results to compressed npz file
+    if args.output_npz is not None:
+        print('Writing output to', args.output_npz)
+        np.savez_compressed(args.output_npz, **outputs)
+
+    # TODO: Add support to write out a ROOT file
+
+    print('Done!')
 
 if __name__ == '__main__':
     main()
