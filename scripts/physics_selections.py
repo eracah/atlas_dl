@@ -44,7 +44,7 @@ def select_fatjets(fatjet_pts, fatjet_etas):
             fatjet_pts > cuts.fatjet_pt_min,
             np.fabs(fatjet_etas) < cuts.fatjet_eta_max)
 
-def is_baseline_event(fatjet_pts, selected_fatjets):
+def is_baseline_event(fatjet_pts, selected_fatjets=None):
     """
     Applies baseline event selection to one event.
 
@@ -63,7 +63,7 @@ def is_baseline_event(fatjet_pts, selected_fatjets):
         return False
     return True
 
-def sum_fatjet_mass(fatjet_ms, selected_fatjets):
+def sum_fatjet_mass(fatjet_ms, selected_fatjets=None):
     """
     Calculates the summed fat jet mass.
     Uses the 4 leading selected fat jets.
