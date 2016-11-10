@@ -11,7 +11,7 @@ import argparse
 from warnings import warn
 import multiprocessing as mp
 import numpy as np
-import pandas as pd
+import h5py
 
 from physics_selections import (select_fatjets, is_baseline_event,
                                 sum_fatjet_mass, is_signal_region_event)
@@ -52,6 +52,7 @@ def parse_args():
     add_arg('input_file_list', nargs='+',
             help='Text file of input files')
     add_arg('-o', '--output-npz', help='Output compressed numpy binary file')
+    add_arg('--output-h5', help='Output hdf5 file')
     add_arg('-n', '--max-events', type=int,
             help='Maximum number of events to read')
     add_arg('-p', '--num-workers', type=int, default=0,
@@ -220,15 +221,17 @@ def main():
 
     # Addition optional outputs
     if args.write_clus:
-        # This is a structured array. Maybe I should split it for consistency.
-        outputs['clusters'] = tree[['clusEta', 'clusPhi', 'clusE']]
+        for key in ['clusEta', 'clusPhi', 'clusE']:
+            outputs[key] = tree[key]
     if args.write_fjets:
         # Write separate arrays for each variable.
         for key in ['fatJetPt', 'fatJetEta', 'fatJetPhi', 'fatJetM']:
             outputs[key] = data[key]
     if args.write_mass:
-        outputs['mGlu'] = mglu
-        outputs['mNeu'] = mneu
+        if mglu is not None:
+            outputs['mGlu'] = mglu
+        if mneu is not None:
+            outputs['mNeu'] = mneu
 
     # Print some summary information
     passSR = data['passSR']
@@ -239,6 +242,13 @@ def main():
     if args.output_npz is not None:
         print('Writing output to', args.output_npz)
         np.savez_compressed(args.output_npz, **outputs)
+
+    # Write results to hdf5
+    if args.output_h5 is not None:
+        print('Writing output to', args.output_h5)
+        with h5py.File(args.output_h5, 'w') as hf:
+            for key, data in outputs.iteritems():
+                hf.create_dataset(key, data=data, compression='gzip')
 
     # TODO: Add support to write out a ROOT file
 
