@@ -90,7 +90,7 @@ def xaod_to_numpy(files, max_events=None):
                                   branches=branchMap.keys(), stop=max_events,
                                   warn_missing_tree=True)
     except IOError as e:
-        warn('root2array gave an IOError: %s' % e)
+        print('WARNING: root2array gave an IOError:', e)
         return None
 
     # Rename the branches
