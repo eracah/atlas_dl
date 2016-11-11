@@ -176,6 +176,26 @@ def get_event_weights(xsec, mcw, sumw, lumi=36000):
     mcw = np.vectorize(lambda g: g[0])(mcw)
     return xsec * mcw * lumi / sumw
 
+def write_hdf5(filename, outputs):
+    """
+    Write the output dictionary contents to an hdf5 file.
+    This will write one dataset group per event.
+    """
+    # Check that event count is consistent across all arrays
+    lengths = np.array([a.shape[0] for a in outputs.values()])
+    assert(np.all(lengths == lengths[0]))
+
+    # Open the output file
+    with h5py.File(filename, 'w') as hf:
+        # Loop over events to write
+        num_entries = outputs.values()[0].shape[0]
+        for i in xrange(num_entries):
+            # Create a group for this event
+            g = hf.create_group('event_{}'.format(i))
+            # Add the data for this event
+            for key, data in outputs.iteritems():
+                g.create_dataset(key, data=data[i])
+
 def main():
     """Main execution function"""
     args = parse_args()
@@ -208,16 +228,14 @@ def main():
         return
 
     # Get the 2D histogram
-    histos = get_calo_image(tree, bins=50)
-
+    hist = get_calo_image(tree, bins=50)
     # Get sample metadata
     mglu, mneu, xsec, sumw = get_meta_data(tree)
-
     # Calculate the event weights
     w = get_event_weights(xsec, tree['genWeight'], sumw)
 
     # Dictionary of output data
-    outputs = dict(histos=histos, weights=w, passSR=data['passSR'])
+    outputs = dict(hist=hist, weight=w, passSR=data['passSR'])
 
     # Addition optional outputs
     if args.write_clus:
@@ -246,11 +264,9 @@ def main():
     # Write results to hdf5
     if args.output_h5 is not None:
         print('Writing output to', args.output_h5)
-        with h5py.File(args.output_h5, 'w') as hf:
-            for key, data in outputs.iteritems():
-                hf.create_dataset(key, data=data, compression='gzip')
+        write_hdf5(args.output_h5, outputs)
 
-    # TODO: Add support to write out a ROOT file
+    # TODO: Add support to write out a ROOT file..?
 
     print('Done!')
 
