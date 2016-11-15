@@ -209,6 +209,7 @@ def main():
 
     # Parallel processing
     if args.num_workers > 0:
+        print('Starting process pool of %d workers' % args.num_workers)
         # Create a pool of workers
         pool = mp.Pool(processes=args.num_workers)
         # Convert to numpy structure in parallel
