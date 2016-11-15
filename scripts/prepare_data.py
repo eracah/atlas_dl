@@ -11,6 +11,7 @@ import argparse
 import multiprocessing as mp
 import numpy as np
 import h5py
+import root_numpy as rnp
 
 from physics_selections import (select_fatjets, is_baseline_event,
                                 sum_fatjet_mass, is_signal_region_event)
@@ -66,7 +67,6 @@ def parse_args():
 
 def xaod_to_numpy(files, max_events=None):
     """Converts the xAOD tree into numpy arrays with root_numpy"""
-    import root_numpy as rnp
 
     # Branch name remapping for convenience
     branchMap = {
