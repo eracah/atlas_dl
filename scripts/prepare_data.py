@@ -8,7 +8,6 @@ from __future__ import print_function
 
 import os
 import argparse
-from warnings import warn
 import multiprocessing as mp
 import numpy as np
 import h5py
