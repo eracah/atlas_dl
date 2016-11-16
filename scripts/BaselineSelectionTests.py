@@ -1,12 +1,12 @@
-from __future__ import print_function
+
 import matplotlib; matplotlib.use("agg")
 
 
-
+from __future__ import print_function
 import functools
 import numpy as np
 import matplotlib.pyplot as plt
-#import pandas as pd
+import pandas as pd
 import ROOT;
 import sys
 sys.path.append('/global/homes/w/wbhimji/cori-envs/nersc-rootpy/lib/python2.7/site-packages/')
@@ -42,8 +42,8 @@ branchMap = {
 
 
 entries = rnp.root2array(bg_files, treename='CollectionTree',
-                         branches=branchMap.keys(),warn_missing_tree=True)
-#                          start=0, stop=500000)
+                         branches=branchMap.keys(),warn_missing_tree=True,
+                          start=0, stop=500000)
 entries.dtype.names = branchMap.values()
 print('Entries:', entries.size)
 
@@ -61,6 +61,8 @@ print(entries[0]['FatJetPt'])
 print(entries['FatJetPt'][0])
 
 
+
+bgdf = pd.DataFrame.from_records(entries)
 
 
 

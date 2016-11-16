@@ -50,8 +50,9 @@ class early_stop(object):
 
 
 
-def create_run_dir():
-    results_dir = './results'
+def create_run_dir(results_dir=None):
+    if results_dir == None:
+        results_dir = './results'
     run_num_file = os.path.join(results_dir, "run_num.txt")
     if not os.path.exists(results_dir):
         print "making results dir"
