@@ -16,9 +16,12 @@ import sys
 import numpy as np
 #enable importing of notebooks
 import inspect
+
 # from helper_fxns import get_best_box, get_detec_loss, get_iou, make_test_data, get_detec_acc, get_final_box
 # if __name__ == "__main__":
 #     from data_loader import load_classification_dataset, load_detection_dataset
+
+
 
 def build_network(args, network):
     X = T.tensor4('input_var')
@@ -37,9 +40,8 @@ def build_network(args, network):
     
     
     '''classification percentage: we can change this based on false postive/false negative criteria'''
-    test_acc = T.mean(T.eq(T.argmax(test_prediction, axis=1), Y))
+    test_acc = categorical_accuracy(test_prediction,Y).mean()
     params = get_all_params(network, trainable=True)
-    #new_weight += momentum*prev_step  - leaarning_rate * (dL(cur_weight + momentum*prev_step)/dcur_weight) 
     updates = nesterov_momentum(loss, params, learning_rate=args['learning_rate'], momentum=args['momentum'])
     
     
@@ -58,7 +60,7 @@ def build_network(args, network):
 
 def build_layers(args):
     
-    conv_kwargs = dict(num_filters=args['num_filters'], filter_size=3, pad=1, nonlinearity=relu, W=HeNormal())
+    conv_kwargs = dict(num_filters=args['num_filters'], filter_size=3, pad=1, nonlinearity=relu, W=HeNormal(gain="relu"))
     network = InputLayer(shape=args['input_shape'])
     for lay in range(args['num_layers']):
         network = batch_norm(Conv2DLayer(network, **conv_kwargs))
@@ -73,6 +75,17 @@ def build_layers(args):
     print count_params(layer)
     
     return network
+
+
+
+
+    
+
+
+
+# def auc(pred,gt):
+    
+    
 
 
 

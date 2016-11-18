@@ -4,48 +4,17 @@ import matplotlib; matplotlib.use("agg")
 
 import numpy as np
 import lasagne
+from lasagne.layers import *
 import time
 import sys
 from matplotlib import pyplot as plt
 import json
 import pickle
 from matplotlib import patches
-from helper_fxns import early_stop
-from print_n_plot import *
-from build_network import build_network
 import logging
-#from data_loader import load_data
-
-def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
-    assert len(inputs) == len(targets)
-    if shuffle:
-        indices = np.arange(len(inputs))
-        np.random.shuffle(indices)
-    if batchsize > inputs.shape[0]:
-        batchsize=inputs.shape[0]
-    for start_idx in range(0,len(inputs) - batchsize + 1, batchsize):
-        if shuffle:
-            excerpt = indices[start_idx: start_idx + batchsize]
-        else:
-            excerpt = slice(start_idx, start_idx + batchsize)
-        yield inputs[excerpt], targets[excerpt]
-
-
-
-import numpy as np
-import lasagne
-import time
-import sys
-from matplotlib import pyplot as plt
-import json
-import pickle
-from matplotlib import patches
+from objectives import *
 from os.path import join, exists
-from os import mkdir, makedirs
-# from helper_fxns import early_stop
-# from print_n_plot import *
-# from build_network import build_network
-import logging
+from os import makedirs, mkdir
 #from data_loader import load_data
 
 def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
@@ -61,11 +30,14 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
         else:
             excerpt = slice(start_idx, start_idx + batchsize)
         yield inputs[excerpt], targets[excerpt]
+
+
 
 
 class TrainVal(object):
-    def __init__(self, data, kwargs, fns, networks):
-        self.data = data
+    def __init__(self, tr,val, kwargs, fns, networks):
+        self.tr = tr
+        self.val=val
         self.metrics = {}
         self.kwargs = kwargs
         self.fns = fns
@@ -77,8 +49,9 @@ class TrainVal(object):
 
     
     def iterator(self,type_):
-        x,y = self.data[type_+"_x"], self.data[type_+"_y"]
-        return iterate_minibatches(x,y, batchsize=self.kwargs["batch_size"], shuffle=True)
+        data = getattr(self,type_)
+        x,y, w,psr = [data[k] for k  in ["x","y", 'w', "psr"]]
+        return iterate_minibatches(x,y,batchsize=self.kwargs["batch_size"], shuffle=True)
     
     def print_network(self, networks):
         for net in networks.values():
@@ -95,6 +68,8 @@ class TrainVal(object):
     def do_one_epoch(self):
         self._do_one_epoch(type_="tr")
         self._do_one_epoch(type_="val")
+        if self.epoch > 2 :
+            self.plot_learn_curve()
         self.print_results()
         self.epoch += 1
     
@@ -108,28 +83,55 @@ class TrainVal(object):
             
             acc = self.fns["acc"](x,y)
             
-            loss_acc_dict = dict(loss=loss, acc=acc)
             
+
+            loss_acc_dict = dict(loss=loss, acc=acc)
+
             
             for k in loss_acc_dict.keys():
-                key = type_ + "_" + k
-                if key not in metrics_tots:
-                    metrics_tots[key] = 0
-                metrics_tots[key] += loss_acc_dict[k]
+                
+                if k not in metrics_tots:
+                    metrics_tots[k] = 0
+                metrics_tots[k] += loss_acc_dict[k]
             
    
             batches += 1
+        data = getattr(self, type_)
+        pred = self.fns["out"](data["x"])
+        #signal confidence
+        pred = pred[:,1]
+        y = data["y"]
+        w = data["w"]
+        
+        metrics_tots = {k: v/batches for k,v in metrics_tots.iteritems()}
+        acc_d = {}
+        
+        for d in [ams(pred,y, w),
+                  bg_rej_sig_eff(pred,y,w),
+                  sig_eff_at(self.kwargs["sig_eff_at"], pred,y,w)]:
+            for k,v in d.iteritems():
+                key = type_ + "_" + k
+                if key not in self.metrics:
+                    self.metrics[key] = []
+                self.metrics[key].append(v)
+                
+                
+            
+
         assert batches > 0
         for k,v in metrics_tots.iteritems():
-            if k not in self.metrics:
-                self.metrics[k] = []
-            self.metrics[k].append(v / float(batches))
+            key = type_ + "_" + k
+            if key not in self.metrics:
+                self.metrics[key] = []
+            self.metrics[key].append(v)
 
         time_key = type_ + "_time"
         if time_key not in self.metrics:
             self.metrics[time_key] = []
         self.metrics[time_key].append(time.time() - start_time)
 
+        
+        self.plot_roc_curve(type_)
         if type_ == "val":
             self.save_weights()
 
@@ -137,19 +139,30 @@ class TrainVal(object):
 
 
     def save_weights(self):
-        best_metrics = ["val_loss", "val_acc"]
-        for k in best_metrics:
+        max_metrics = ["val_acc", "val_ams", "val_sig_eff", "val_bg_rej", "val_sig_eff_at_" + str(self.kwargs["sig_eff_at"])]
+        min_metrics = ["val_loss"]
+        for k in max_metrics:
             if len(self.metrics[k]) > 1:
                 if self.metrics[k][-1] > max(self.metrics[k][:-1]):
                     self._save_weights("net", "best_" + k)
+        
+        
             else:
                 self._save_weights("net", "best_" + k)
+        for k in min_metrics:
+            if len(self.metrics[k]) > 1:
+                if self.metrics[k][-1] < min(self.metrics[k][:-1]):
+                    self._save_weights("net", "best_" + k)
 
 
 
 
 
-        self._save_weights("net", "cur") 
+        self._save_weights("net", "cur")
+
+        
+
+
         
     def _save_weights(self,name,suffix=""):
         params = get_all_param_values(self.networks[name])
@@ -172,18 +185,42 @@ class TrainVal(object):
             if typ == "val":
                 self.kwargs['logger'].info("\tValidation took {:.3f}s".format(self.metrics["val_time"][-1]))
             for k,v in self.metrics.iteritems():
+                #print k,v
                 if typ in k[:4] and "time" not in k:
                     if "acc" in k:
                         self.kwargs['logger'].info("\t\t" + k + ":\t\t{:.4f} %".format(v[-1] * 100))
                     else:
+                        
+                        
                         self.kwargs['logger'].info("\t\t" + k + ":\t\t{:.4f}".format(v[-1]))
+        
+    
+    def plot_roc_curve(self, type_):
+        data = getattr(self, type_)
+        pred = self.fns["out"](data["x"])
+        #signal preds
+        pred = pred[:,1]
+        roc = roc_vals(pred, data["y"], data["w"])
+        roc_path = join(self.kwargs['save_path'], "roc_curves")
+        self.makedir_if_not_there(roc_path)
+        plt.clf()
+        plt.figure(1)
+        plt.clf()
+        plt.title('%s ROC Curve' %(type_))
+        plt.plot(roc["fpr"], roc["tpr"])
+        plt.legend( loc = 'center left', bbox_to_anchor = (1.0, 0.5),
+           ncol=2)
+        plt.savefig("%s/%s_roc_curve.png"%(roc_path,type_))
+        #pass
+        plt.clf()
+
         
         
 
     def plot_learn_curve(self):
         for k in self.metrics.keys():
             if "time" not in k:
-                self._plot_learn_curve(k.split("_")[1])
+                self._plot_learn_curve('_'.join(k.split("_")[1:]))
         
     def _plot_learn_curve(self,type_):
         plt.clf()
@@ -212,17 +249,6 @@ class TrainVal(object):
 
 
 
-def get_logger(run_dir):
-    logger = logging.getLogger('log_train')
-    if not getattr(logger, 'handler_set', None):
-        logger.setLevel(logging.INFO)
-        fh = logging.FileHandler('%s/training.log'%(run_dir))
-        fh.setLevel(logging.INFO)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        logger.addHandler(ch)
-        logger.addHandler(fh)
-    return logger
 
 def train_val(net_cfg, kwargs, data):
     

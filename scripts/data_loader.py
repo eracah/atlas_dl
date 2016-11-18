@@ -10,30 +10,33 @@ from sklearn import preprocessing
 from sklearn.cross_validation import train_test_split
 import sys
 import os
+from os.path import join, exists
+from os import makedirs, mkdir
 import time
 import h5py
-
+from helper_fxns import suppress_stdout_stderr
 #sys.path.append('/global/homes/w/wbhimji/cori-envs/nersc-rootpy/lib/python2.7/site-packages/')
 
 
 
-def shuffle(x,y):
-    inds = np.arange(x.shape[0])
+def shuffle(kwargs):
+    inds = np.arange(kwargs[kwargs.keys()[0]].shape[0])
 
     #shuffle data
     rng = np.random.RandomState(7)
     rng.shuffle(inds)
-    return x[inds], y[inds]
+    return {k:v[inds] for k,v in kwargs.iteritems()}
 
-def split_train_val(x,y, prop):
+def split_train_val(prop, kwargs):
     tr_prop = 1 - prop
-    inds = np.arange(x.shape[0])
+    inds = np.arange(kwargs[kwargs.keys()[0]].shape[0])
     #split train, val, test
     tr_inds = inds[:int((tr_prop*len(inds)))]
     val_inds = inds[int(tr_prop*len(inds)):]
 
-    x_tr, y_tr, x_val, y_val = x[tr_inds], y[tr_inds], x[val_inds], y[val_inds]
-    return x_tr, y_tr, x_val, y_val
+    tr = {k:v[tr_inds] for k,v in kwargs.iteritems()}
+    val = {k:v[val_inds] for k,v in kwargs.iteritems()}
+    return tr,val
 
 
 
@@ -48,38 +51,6 @@ def preprocess(x, max_abs=None):
     #print np.max(x)
     #print np.min(x)
     return x, max_abs
-
-
-
-# Define a context manager to suppress stdout and stderr.
-class suppress_stdout_stderr(object):
-    '''
-    A context manager for doing a "deep suppression" of stdout and stderr in 
-    Python, i.e. will suppress all print, even if the print originates in a 
-    compiled C/Fortran sub-function.
-       This will not suppress raised exceptions, since exceptions are printed
-    to stderr just before a script exits, and after the context manager has
-    exited (at least, I think that is why it lets exceptions through).      
-
-    '''
-    def __init__(self):
-        # Open a pair of null files
-        self.null_fds =  [os.open(os.devnull,os.O_RDWR) for x in range(2)]
-        # Save the actual stdout (1) and stderr (2) file descriptors.
-        self.save_fds = (os.dup(1), os.dup(2))
-
-    def __enter__(self):
-        # Assign the null pointers to stdout and stderr.
-        os.dup2(self.null_fds[0],1)
-        os.dup2(self.null_fds[1],2)
-
-    def __exit__(self, *_):
-        # Re-assign the real stdout/stderr back to (1) and (2)
-        os.dup2(self.save_fds[0],1)
-        os.dup2(self.save_fds[1],2)
-        # Close the null files
-        os.close(self.null_fds[0])
-        os.close(self.null_fds[1])
 
 
 
@@ -180,11 +151,17 @@ class DataLoader(object):
             x = self._grab_root_events(file_list, num_files_or_events,start)
         else:
             X=[]
+            W=[]
+            PSR = []
             for file_ in file_list:
-                x = self._grab_hdf5_events(file_, num_files_or_events / len(file_list), start)
+                x, w, psr = self._grab_hdf5_events(file_, num_files_or_events / len(file_list), start)
                 X.append(x)
+                W.append(w)
+                PSR.append(psr)
             x = np.vstack(tuple(X))
-        return x
+            w = np.vstack(tuple(W))
+            psr = np.vstack(tuple(PSR))
+        return dict(x=x,w=w,psr=psr)
             
     
     def _grab_hdf5_events(self,file_, num_events, start):
@@ -194,6 +171,8 @@ class DataLoader(object):
             x = np.zeros((num_events, 1, 50,50 ))
         else:
             x = np.zeros((num_events, 1, self.phi_bins, self.eta_bins ))
+        w = np.zeros((num_events,1))
+        psr = np.zeros((num_events,1))
         for cnt, i in enumerate(range(start, num_events)):
             event = h5f[self.group_prefix + str(i)]
             if self.use_premade:
@@ -202,7 +181,9 @@ class DataLoader(object):
                 #print event.keys()
                 d = {k.lower():event[k] for k in self.h5keys }
                 x[cnt][0] = self.make_hist(d)
-        return x
+            w[i] = event["weight"].value
+            psr[i] = event["passSR"].value
+        return x, w, psr
         
         
         
@@ -240,22 +221,27 @@ class DataLoader(object):
 
     def load_data(self):
         num = self.num_files if self.file_type == "root" else self.num_each
-        x_bg = self.grab_events(self.bg_files, num)
-        x_sig = self.grab_events(self.sig_files, num)
+        
+        bg = self.grab_events(self.bg_files, num)
+        sig = self.grab_events(self.sig_files, num)
 
-        #background first
-        x = np.vstack((x_bg, x_sig))
-
+        #data dictionary
+        data = {k:np.vstack((bg[k],sig[k])) for k in bg.keys()}
+        
+        
         # 1 means signal, 0 means background
         y = np.zeros((2*self.num_each,)).astype('int32')
         #make the last half signal label
         y[self.num_each:] = 1
         
-        x,y = shuffle(x,y)
-        xt,yt,xv,yv = split_train_val(x,y, self.val_prop)
-        xt,tm = preprocess(xt)
-        xv, _ = preprocess(xv,tm)
-        return xt, yt, xv, yv 
+        data["y"] = y
+        
+        data = shuffle(data)
+        tr_data, val_data = split_train_val(self.val_prop, data)
+        
+        tr_data["x"],tm = preprocess(tr_data["x"])
+        val_data["x"], _ = preprocess(val_data["x"],tm)
+        return tr_data, val_data
     
     def iterate_data(self, batch_size=128):
 #         if self.num_each < batch_size / 2:
@@ -269,14 +255,9 @@ class DataLoader(object):
 
 
 if __name__=="__main__":
-    dl = DataLoader(bg_cfg_file = '../config/BgFileListAug16.txt',
-                sig_cfg_file='../config/SignalFileListAug16.txt',)
-
-
-
-
-
-
-
-
+    h5_prefix = "/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/prod003_2016_11_14"
+    
+    dl = DataLoader(bg_cfg_file=[join(h5_prefix, "jetjet_JZ4.h5"),join(h5_prefix, "jetjet_JZ5.h5")],
+                    sig_cfg_file=join(h5_prefix, "GG_RPV10_1400_850.h5"),
+                   num_events=100, type_="hdf5",use_premade=True)
 
