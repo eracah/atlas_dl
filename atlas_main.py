@@ -30,11 +30,11 @@ def setup_kwargs():
                       'learning_rate': 0.01, 
                       'dropout_p': 0, 
                       'weight_decay': 0, #0.0001, 
-                      'num_filters': 64, 
+                      'num_filters': 10, 
                       'num_fc_units': 32,
                       'num_layers': 4,
                       'momentum': 0.9,
-                      'num_epochs': 10000,
+                      'num_epochs': 20000,
                       'batch_size': 128,
                      "save_path": "None",
                     "num_events": 1000,
@@ -161,10 +161,6 @@ if __name__ == "__main__":
 # # saliency, max_class = saliency_fn(best_sig)
 # # #np.squeeze(np.abs(saliency)).shape
 # # show_images(best_sigs[-1], saliency, max_class, "default gradient", save_dir=run_dir)
-
-
-
-
 
 
 

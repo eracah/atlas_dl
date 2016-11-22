@@ -42,7 +42,9 @@ def build_network(args, network):
     '''classification percentage: we can change this based on false postive/false negative criteria'''
     test_acc = categorical_accuracy(test_prediction,Y).mean()
     params = get_all_params(network, trainable=True)
-    updates = nesterov_momentum(loss, params, learning_rate=args['learning_rate'], momentum=args['momentum'])
+    
+    updates = adam(loss, learning_rate=args['learning_rate'], params=params)
+    #updates = nesterov_momentum(loss, params, learning_rate=args['learning_rate'], momentum=args['momentum'])
     
     
     '''train_fn -> takes in input,label pairs -> outputs loss '''
