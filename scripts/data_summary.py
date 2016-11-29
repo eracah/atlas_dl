@@ -56,6 +56,7 @@ def main():
                 print('  Events in file:   ', len(events))
                 print('  Events passing SR:', passSR.sum())
                 print('  Weighted SR:      ', weight[passSR].sum())
+                print('  First weight:     ', weight[0])
 
         except IOError as e:
             print('IOError:', e)
