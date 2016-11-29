@@ -81,28 +81,21 @@ def filter_xaod_to_numpy(files, max_events=None):
     if tree is None:
         return None
 
-    # Get vectorized selection functions
-    vec_select_fatjets = np.vectorize(select_fatjets, otypes=[np.ndarray])
-    vec_select_baseline_events = np.vectorize(is_baseline_event)
-    def filter_jets(x, idx):
-        return x[idx]
-    vec_filter_jets = np.vectorize(filter_jets, otypes=[np.ndarray])
-    vec_sum_fatjet_mass = np.vectorize(sum_fatjet_mass)
-    vec_select_sr_events = np.vectorize(is_signal_region_event)
-
     # Object selection
+    vec_select_fatjets = np.vectorize(select_fatjets, otypes=[np.ndarray])
     jetIdx = vec_select_fatjets(tree['fatJetPt'], tree['fatJetEta'])
     fatJetPt, fatJetEta, fatJetPhi, fatJetM = filter_objects(
         jetIdx, tree['fatJetPt'], tree['fatJetEta'], tree['fatJetPhi'], tree['fatJetM'])
 
     # Baseline event selection
-    skimIdx = vec_select_baseline_events(fatJetPt)
+    skimIdx = np.vectorize(is_baseline_event)(fatJetPt)
     print('Baseline selected events: %d / %d' % (np.sum(skimIdx), tree.size))
 
     # Calculate summed fatjet mass
-    sumFatJetM = vec_sum_fatjet_mass(fatJetM)
+    sumFatJetM = np.vectorize(sum_fatjet_mass)(fatJetM)
 
     # Signal-region event selection
+    vec_select_sr_events = np.vectorize(is_signal_region_event)
     srIdx = vec_select_sr_events(sumFatJetM, fatJetPt, fatJetEta, None, skimIdx)
 
     # Return results in a dict of arrays
