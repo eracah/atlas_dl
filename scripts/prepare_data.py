@@ -13,8 +13,11 @@ import numpy as np
 import h5py
 import root_numpy as rnp
 
-from physics_selections import (select_fatjets, is_baseline_event,
-                                sum_fatjet_mass, is_signal_region_event)
+from physics_selections import (filter_objects, filter_events,
+                                select_fatjets, is_baseline_event,
+                                sum_fatjet_mass, fatjet_deta12,
+                                pass_sr4j, pass_sr5j,
+                                is_signal_region_event)
 from weights import get_rpv_params, get_bkg_xsec, get_sumw
 from utils import suppress_stdout_stderr
 
@@ -89,10 +92,8 @@ def filter_xaod_to_numpy(files, max_events=None):
 
     # Object selection
     jetIdx = vec_select_fatjets(tree['fatJetPt'], tree['fatJetEta'])
-    fatJetPt = vec_filter_jets(tree['fatJetPt'], jetIdx)
-    fatJetEta = vec_filter_jets(tree['fatJetEta'], jetIdx)
-    fatJetPhi = vec_filter_jets(tree['fatJetPhi'], jetIdx)
-    fatJetM = vec_filter_jets(tree['fatJetM'], jetIdx)
+    fatJetPt, fatJetEta, fatJetPhi, fatJetM = filter_objects(
+        jetIdx, tree['fatJetPt'], tree['fatJetEta'], tree['fatJetPhi'], tree['fatJetM'])
 
     # Baseline event selection
     skimIdx = vec_select_baseline_events(fatJetPt)
