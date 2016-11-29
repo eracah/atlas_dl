@@ -91,7 +91,7 @@ def sum_fatjet_mass(fatjet_ms, selected_fatjets=None):
     masses = _apply_indices(fatjet_ms, selected_fatjets)
     return np.sum(masses[:4])
 
-def fatjet_deta12(fatjet_etas, selected_fatjets):
+def fatjet_deta12(fatjet_etas, selected_fatjets=None):
     """Delta-eta between leading fat-jets"""
     eta1, eta2 = _apply_indices(fatjet_etas, selected_fatjets)[:2]
     return abs(eta1 - eta2)
