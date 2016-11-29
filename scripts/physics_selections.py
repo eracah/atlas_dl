@@ -30,6 +30,20 @@ def _apply_indices(a, indices):
     else:
         return a
 
+def filter_objects(obj_idx, *obj_arrays):
+    """Applies an object filter to a set of object arrays."""
+    filtered_arrays = []
+    def filt(x, idx):
+        return x[idx]
+    vec_filter = np.vectorize(filt, otypes=[np.ndarray])
+    for obj_array in obj_arrays:
+        filtered_arrays.append(vec_filter(obj_array, obj_idx))
+    return filtered_arrays
+
+def filter_events(event_idx, *arrays):
+    """Applies an event filter to a set of arrays."""
+    return map(lambda x: x[event_idx], arrays)
+
 def select_fatjets(fatjet_pts, fatjet_etas):
     """
     Selects the analysis fat jets for one event.
