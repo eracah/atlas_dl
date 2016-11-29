@@ -89,20 +89,24 @@ def filter_xaod_to_numpy(files, max_events=None):
 
     # Baseline event selection
     skimIdx = np.vectorize(is_baseline_event)(fatJetPt)
+    fatJetPt, fatJetEta, fatJetPhi, fatJetM = filter_events(
+        skimIdx, fatJetPt, fatJetEta, fatJetPhi, fatJetM)
     print('Baseline selected events: %d / %d' % (np.sum(skimIdx), tree.size))
 
-    # Calculate summed fatjet mass
+    # Calculate quantities needed for SR selection
+    numFatJet = np.vectorize(lambda x: x.size)(fatJetPt)
     sumFatJetM = np.vectorize(sum_fatjet_mass)(fatJetM)
+    fatJetDEta12 = np.vectorize(fatjet_deta12)(fatJetEta)
 
     # Signal-region event selection
-    vec_select_sr_events = np.vectorize(is_signal_region_event)
-    srIdx = vec_select_sr_events(sumFatJetM, fatJetPt, fatJetEta, None, skimIdx)
+    passSR4J = np.vectorize(pass_sr4j)(numFatJet, sumFatJetM, fatJetDEta12)
+    passSR5J = np.vectorize(pass_sr5j)(numFatJet, sumFatJetM, fatJetDEta12)
+    passSR = np.logical_or(passSR4J, passSR5J)
 
     # Return results in a dict of arrays
-    return dict(tree=tree[skimIdx],
-                fatJetPt=fatJetPt[skimIdx], fatJetEta=fatJetEta[skimIdx],
-                fatJetPhi=fatJetPhi[skimIdx], fatJetM=fatJetM[skimIdx],
-                sumFatJetM=sumFatJetM[skimIdx], passSR=srIdx[skimIdx])
+    return dict(tree=tree[skimIdx], fatJetPt=fatJetPt, fatJetEta=fatJetEta,
+                fatJetPhi=fatJetPhi, fatJetM=fatJetM, sumFatJetM=sumFatJetM,
+                passSR4J=passSR4J, passSR5J=passSR5J, passSR=passSR)
 
 def get_calo_image(tree, xkey='clusEta', ykey='clusPhi', wkey='clusE',
                    bins=100, xlim=[-2.5, 2.5], ylim=[-3.15, 3.15]):
