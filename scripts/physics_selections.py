@@ -96,6 +96,32 @@ def fatjet_deta12(fatjet_etas, selected_fatjets=None):
     eta1, eta2 = _apply_indices(fatjet_etas, selected_fatjets)[:2]
     return abs(eta1 - eta2)
 
+def pass_sr4j(num_fatjet, summed_mass, fatjet_deta12):
+    """
+    Applies the 4-jet signal region selection to one event.
+    Inputs
+      num_fatjet: number of selected fat jets
+      summed_mass: summed fatjet mass as calculated by sum_fatjet_mass function
+      fatjet_deta12: delta-eta between leading fat jets
+    Returns a bool
+    """
+    return all([num_fatjet >= 4,
+                fatjet_deta12 > cuts.sr_deta12_max,
+                summed_mass > cuts.sr4j_mass_min])
+
+def pass_sr5j(num_fatjet, summed_mass, fatjet_deta12):
+    """
+    Applies the 5-jet signal region selection to one event.
+    Inputs
+      num_fatjet: number of selected fat jets
+      summed_mass: summed fatjet mass as calculated by sum_fatjet_mass function
+      fatjet_deta12: delta-eta between leading fat jets
+    Returns a bool
+    """
+    return all([num_fatjet >= 5,
+                fatjet_deta12 > cuts.sr_deta12_max,
+                summed_mass > cuts.sr5j_mass_min])
+
 def is_signal_region_event(summed_mass, fatjet_pts, fatjet_etas,
                            selected_fatjets, is_baseline=None):
     """
