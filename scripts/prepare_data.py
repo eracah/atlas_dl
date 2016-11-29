@@ -225,6 +225,8 @@ def main():
 
     # Print some summary information
     passSR = data['passSR']
+    print('SR4J selected events: %d / %d' % (np.sum(data['passSR4J']), tree.size))
+    print('SR5J selected events: %d / %d' % (np.sum(data['passSR5J']), tree.size))
     print('SR selected events: %d / %d' % (np.sum(passSR), tree.size))
     print('SR weighted events: %f' % (np.sum(w[passSR])))
 
