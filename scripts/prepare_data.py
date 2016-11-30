@@ -91,17 +91,22 @@ def filter_xaod_to_numpy(files, max_events=None):
     skimIdx = np.vectorize(is_baseline_event)(fatJetPt)
     fatJetPt, fatJetEta, fatJetPhi, fatJetM = filter_events(
         skimIdx, fatJetPt, fatJetEta, fatJetPhi, fatJetM)
-    print('Baseline selected events: %d / %d' % (np.sum(skimIdx), tree.size))
+    num_baseline = np.sum(skimIdx)
+    print('Baseline selected events: %d / %d' % (num_baseline, tree.size))
 
     # Calculate quantities needed for SR selection
-    numFatJet = np.vectorize(lambda x: x.size)(fatJetPt)
-    sumFatJetM = np.vectorize(sum_fatjet_mass)(fatJetM)
-    fatJetDEta12 = np.vectorize(fatjet_deta12)(fatJetEta)
+    if num_baseline > 0:
+        numFatJet = np.vectorize(lambda x: x.size)(fatJetPt)
+        sumFatJetM = np.vectorize(sum_fatjet_mass)(fatJetM)
+        fatJetDEta12 = np.vectorize(fatjet_deta12)(fatJetEta)
 
-    # Signal-region event selection
-    passSR4J = np.vectorize(pass_sr4j)(numFatJet, sumFatJetM, fatJetDEta12)
-    passSR5J = np.vectorize(pass_sr5j)(numFatJet, sumFatJetM, fatJetDEta12)
-    passSR = np.logical_or(passSR4J, passSR5J)
+        # Signal-region event selection
+        passSR4J = np.vectorize(pass_sr4j)(numFatJet, sumFatJetM, fatJetDEta12)
+        passSR5J = np.vectorize(pass_sr5j)(numFatJet, sumFatJetM, fatJetDEta12)
+        passSR = np.logical_or(passSR4J, passSR5J)
+    else:
+        numFatJet = sumFatJetM = fatJetDEta12 = np.zeros(0)
+        passSR4J = passSR5J = passSR = np.zeros(0, dtype=np.bool)
 
     # Return results in a dict of arrays
     return dict(tree=tree[skimIdx], fatJetPt=fatJetPt, fatJetEta=fatJetEta,
