@@ -106,7 +106,7 @@ def pass_sr4j(num_fatjet, summed_mass, fatjet_deta12):
     Returns a bool
     """
     return all([num_fatjet >= 4,
-                fatjet_deta12 > cuts.sr_deta12_max,
+                fatjet_deta12 < cuts.sr_deta12_max,
                 summed_mass > cuts.sr4j_mass_min])
 
 def pass_sr5j(num_fatjet, summed_mass, fatjet_deta12):
@@ -119,7 +119,7 @@ def pass_sr5j(num_fatjet, summed_mass, fatjet_deta12):
     Returns a bool
     """
     return all([num_fatjet >= 5,
-                fatjet_deta12 > cuts.sr_deta12_max,
+                fatjet_deta12 < cuts.sr_deta12_max,
                 summed_mass > cuts.sr5j_mass_min])
 
 def is_signal_region_event(summed_mass, fatjet_pts, fatjet_etas,
