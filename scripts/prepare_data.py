@@ -177,7 +177,6 @@ def main():
         with open(input_list) as f:
             input_files.extend(map(str.rstrip, f.readlines()))
     print('Processing %i input files' % len(input_files))
-    #print(input_files)
 
     # Parallel processing
     if args.num_workers > 0:
@@ -206,8 +205,14 @@ def main():
     # Calculate the event weights
     w = get_event_weights(xsec, tree['genWeight'], sumw)
 
+    # Signal region flags
+    passSR4J = data['passSR4J']
+    passSR5J = data['passSR5J']
+    passSR = data['passSR']
+
     # Dictionary of output data
-    outputs = dict(hist=hist, weight=w, passSR=data['passSR'])
+    outputs = dict(hist=hist, weight=w, passSR4J=passSR4J,
+                   passSR5J=passSR5J, passSR=passSR)
 
     # Addition optional outputs
     if args.write_clus:
@@ -224,9 +229,10 @@ def main():
             outputs['mNeu'] = mneu
 
     # Print some summary information
-    passSR = data['passSR']
-    print('SR4J selected events: %d / %d' % (np.sum(data['passSR4J']), tree.size))
-    print('SR5J selected events: %d / %d' % (np.sum(data['passSR5J']), tree.size))
+    print('SR4J selected events: %d / %d' % (np.sum(passSR4J), tree.size))
+    print('SR4J weighted events: %f' % np.sum(w[passSR4J]))
+    print('SR5J selected events: %d / %d' % (np.sum(passSR5J), tree.size))
+    print('SR5J weighted events: %f' % np.sum(w[passSR5J]))
     print('SR selected events: %d / %d' % (np.sum(passSR), tree.size))
     print('SR weighted events: %f' % (np.sum(w[passSR])))
 
