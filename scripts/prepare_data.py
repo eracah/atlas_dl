@@ -28,6 +28,8 @@ def parse_args():
     add_arg = parser.add_argument
     add_arg('input_file_list', nargs='+',
             help='Text file of input files')
+    add_arg('--input-type', default='xaod', choices=['xaod', 'delphes'],
+            help='Specify xaod or delphes input file type')
     add_arg('-o', '--output-npz', help='Output compressed numpy binary file')
     add_arg('--output-h5', help='Output hdf5 file')
     add_arg('-n', '--max-events', type=int,
@@ -42,50 +44,32 @@ def parse_args():
             help='Write RPV theory mass params to output')
     return parser.parse_args()
 
-def xaod_to_numpy(files, max_events=None):
-    """Converts the xAOD tree into numpy arrays with root_numpy"""
-
-    # Branch name remapping for convenience
-    branchMap = {
-        'CaloCalTopoClustersAuxDyn.calEta' : 'clusEta',
-        'CaloCalTopoClustersAuxDyn.calPhi' : 'clusPhi',
-        'CaloCalTopoClustersAuxDyn.calE' : 'clusE',
-        'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.pt' : 'fatJetPt',
-        'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.eta' : 'fatJetEta',
-        'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.phi' : 'fatJetPhi',
-        'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.m' : 'fatJetM',
-        'EventInfoAuxDyn.mcChannelNumber' : 'dsid',
-        'EventInfoAuxDyn.mcEventWeights' : 'genWeight',
-    }
-
-    print('Now processing:', files)
+def get_tree(files, branch_dict, tree_name='CollectionTree', max_events=None):
+    """Applies root_numpy to get out a numpy array"""
     # Convert the files
     try:
         with suppress_stdout_stderr():
-            tree = rnp.root2array(files, treename='CollectionTree',
-                                  branches=branchMap.keys(), stop=max_events,
+            tree = rnp.root2array(files, treename=tree_name,
+                                  branches=branch_dict.keys(), stop=max_events,
                                   warn_missing_tree=True)
     except IOError as e:
         print('WARNING: root2array gave an IOError:', e)
         return None
 
     # Rename the branches
-    tree.dtype.names = branchMap.values()
+    tree.dtype.names = branch_dict.values()
     return tree
 
-def filter_xaod_to_numpy(files, max_events=None):
-    """Processes some files by converting to numpy and applying filtering"""
-
-    # Convert the data to numpy
-    tree = xaod_to_numpy(files, max_events)
-    if tree is None:
-        return None
+def process_events(tree):
+    """Applies physics selections and filtering"""
 
     # Object selection
     vec_select_fatjets = np.vectorize(select_fatjets, otypes=[np.ndarray])
-    jetIdx = vec_select_fatjets(tree['fatJetPt'], tree['fatJetEta'])
+    fatJetPt, fatJetEta = tree['fatJetPt'], tree['fatJetEta']
+    jetIdx = vec_select_fatjets(fatJetPt, fatJetEta)
+
     fatJetPt, fatJetEta, fatJetPhi, fatJetM = filter_objects(
-        jetIdx, tree['fatJetPt'], tree['fatJetEta'], tree['fatJetPhi'], tree['fatJetM'])
+        jetIdx, fatJetPt, fatJetEta, tree['fatJetPhi'], tree['fatJetM'])
 
     # Baseline event selection
     skimIdx = np.vectorize(is_baseline_event)(fatJetPt)
@@ -113,6 +97,51 @@ def filter_xaod_to_numpy(files, max_events=None):
                 fatJetPhi=fatJetPhi, fatJetM=fatJetM, sumFatJetM=sumFatJetM,
                 passSR4J=passSR4J, passSR5J=passSR5J, passSR=passSR)
 
+def filter_delphes_to_numpy(files, max_events=None):
+    """Processes some files by converting to numpy and applying filtering"""
+    # Branch name remapping for convenience
+    branch_dict = {
+        'Tower.Eta' : 'clusEta',
+        'Tower.Phi' : 'clusPhi',
+        'Tower.E' : 'clusE',
+        'FatJet.PT' : 'fatJetPt',
+        'FatJet.Eta' : 'fatJetEta',
+        'FatJet.Phi' : 'fatJetPhi',
+        'FatJet.Mass' : 'fatJetM',
+    }
+    # Convert the data to numpy
+    print('Now processing:', files)
+    tree = get_tree(files, branch_dict, tree_name='Delphes', max_events=max_events)
+    if tree is None:
+        return None
+    # Fix units
+    for key in ['clusE', 'fatJetPt', 'fatJetM']:
+        tree[key] = tree[key]*1e3
+    # Apply physics
+    return process_events(tree)
+
+def filter_xaod_to_numpy(files, max_events=None):
+    """Processes some files by converting to numpy and applying filtering"""
+    # Branch name remapping for convenience
+    branch_dict = {
+        'CaloCalTopoClustersAuxDyn.calEta' : 'clusEta',
+        'CaloCalTopoClustersAuxDyn.calPhi' : 'clusPhi',
+        'CaloCalTopoClustersAuxDyn.calE' : 'clusE',
+        'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.pt' : 'fatJetPt',
+        'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.eta' : 'fatJetEta',
+        'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.phi' : 'fatJetPhi',
+        'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.m' : 'fatJetM',
+        'EventInfoAuxDyn.mcChannelNumber' : 'dsid',
+        'EventInfoAuxDyn.mcEventWeights' : 'genWeight',
+    }
+    # Convert the data to numpy
+    print('Now processing:', files)
+    tree = get_tree(files, branch_dict, tree_name='CollectionTree', max_events=max_events)
+    if tree is None:
+        return None
+    # Apply physics
+    return process_events(tree)
+
 def get_calo_image(tree, xkey='clusEta', ykey='clusPhi', wkey='clusE',
                    bins=100, xlim=[-2.5, 2.5], ylim=[-3.15, 3.15]):
     """Convert the numpy structure with calo clusters into 2D calo histograms"""
@@ -136,7 +165,11 @@ def merge_results(dicts):
 
 def get_meta_data(tree):
     """Use the dsid to get sample metadata like xsec"""
-    dsids = tree['dsid']
+    try:
+        dsids = tree['dsid']
+    except ValueError:
+        print('WARNING: no dsid => no metadata => no event weights')
+        return None, None, None, None
     # Try to get RPV metadata
     try:
         mglu, mneu, xsec = np.vectorize(get_rpv_params)(dsids)
@@ -183,19 +216,26 @@ def main():
             input_files.extend(map(str.rstrip, f.readlines()))
     print('Processing %i input files' % len(input_files))
 
+    # Configure for delphes or xaod
+    print(args.input_type)
+    if args.input_type == 'xaod':
+        filter_func = filter_xaod_to_numpy
+    else:
+        filter_func = filter_delphes_to_numpy
+
     # Parallel processing
     if args.num_workers > 0:
         print('Starting process pool of %d workers' % args.num_workers)
         # Create a pool of workers
         pool = mp.Pool(processes=args.num_workers)
         # Convert to numpy structure in parallel
-        task_data = pool.map(filter_xaod_to_numpy, input_files)
+        task_data = pool.map(filter_func, input_files)
         # Merge the results from each task
         data = merge_results(task_data)
     # Sequential processing
     else:
         # Run the conversion and filter directly
-        data = filter_xaod_to_numpy(input_files, args.max_events)
+        data = filter_func(input_files, args.max_events)
 
     #print('Array shape and types:', data.shape, data.dtype)
     tree = data['tree']
@@ -208,7 +248,8 @@ def main():
     # Get sample metadata
     mglu, mneu, xsec, sumw = get_meta_data(tree)
     # Calculate the event weights
-    w = get_event_weights(xsec, tree['genWeight'], sumw)
+    weight = (get_event_weights(xsec, tree['genWeight'], sumw)
+              if sumw is not None else None)
 
     # Signal region flags
     passSR4J = data['passSR4J']
@@ -216,8 +257,9 @@ def main():
     passSR = data['passSR']
 
     # Dictionary of output data
-    outputs = dict(hist=hist, weight=w, passSR4J=passSR4J,
-                   passSR5J=passSR5J, passSR=passSR)
+    outputs = dict(hist=hist, passSR4J=passSR4J, passSR5J=passSR5J, passSR=passSR)
+    if weight is not None:
+        outputs['weight'] = weight
 
     # Addition optional outputs
     if args.write_clus:
@@ -235,11 +277,14 @@ def main():
 
     # Print some summary information
     print('SR4J selected events: %d / %d' % (np.sum(passSR4J), tree.size))
-    print('SR4J weighted events: %f' % np.sum(w[passSR4J]))
+    if weight is not None:
+        print('SR4J weighted events: %f' % np.sum(weight[passSR4J]))
     print('SR5J selected events: %d / %d' % (np.sum(passSR5J), tree.size))
-    print('SR5J weighted events: %f' % np.sum(w[passSR5J]))
+    if weight is not None:
+        print('SR5J weighted events: %f' % np.sum(weight[passSR5J]))
     print('SR selected events: %d / %d' % (np.sum(passSR), tree.size))
-    print('SR weighted events: %f' % (np.sum(w[passSR])))
+    if weight is not None:
+        print('SR weighted events: %f' % (np.sum(weight[passSR])))
 
     # Write results to compressed npz file
     if args.output_npz is not None:
