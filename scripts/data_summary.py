@@ -36,11 +36,15 @@ def print_event(event):
 def get_flags(events):
     """Get numpy arrays of all the event weights and passSR"""
     weight = np.zeros((len(events)))
+    passSR4J = np.zeros(len(events), bool)
+    passSR5J = np.zeros(len(events), bool)
     passSR = np.zeros(len(events), bool)
     for i, event in enumerate(events):
         weight[i] = event['weight'].value
+        passSR4J[i] = event['passSR4J'].value
+        passSR5J[i] = event['passSR5J'].value
         passSR[i] = event['passSR'].value
-    return weight, passSR
+    return weight, passSR4J, passSR5J, passSR
 
 def main():
     args = parse_args()
@@ -52,11 +56,15 @@ def main():
             # Open the input file
             with h5py.File(input_file, 'r') as hf:
                 events = hf.values()
-                weight, passSR = get_flags(events)
-                print('  Events in file:   ', len(events))
-                print('  Events passing SR:', passSR.sum())
-                print('  Weighted SR:      ', weight[passSR].sum())
-                print('  First weight:     ', weight[0])
+                weight, passSR4J, passSR5J, passSR = get_flags(events)
+                print('  Events in file:     ', len(events))
+                print('  Events passing SR4J:', passSR4J.sum())
+                print('  Events passing SR5J:', passSR5J.sum())
+                print('  Events passing SR:  ', passSR.sum())
+                print('  Weighted SR4J:      ', weight[passSR4J].sum())
+                print('  Weighted SR5J:      ', weight[passSR5J].sum())
+                print('  Weighted SR:        ', weight[passSR].sum())
+                print('  First weight:       ', weight[0])
 
         except IOError as e:
             print('IOError:', e)
