@@ -42,6 +42,8 @@ def parse_args():
             help='Write fat jet info to output')
     add_arg('--write-mass', action='store_true',
             help='Write RPV theory mass params to output')
+    add_arg('--bins', default=64, type=int,
+            help='the number of bins aka the dimensions of the hist data')
     return parser.parse_args()
 
 def get_tree(files, branch_dict, tree_name='CollectionTree', max_events=None):
@@ -196,6 +198,11 @@ def write_hdf5(filename, outputs):
 
     # Open the output file
     with h5py.File(filename, 'w') as hf:
+        #create one big h5f group
+        g = hf.create_group('all_events')
+        for key, data in outputs.iteritems():
+            if key in ["hist", "passSR4J", "passSR5J", "passSR", "weight"]:
+                g.create_dataset(key, data=data)
         # Loop over events to write
         num_entries = outputs.values()[0].shape[0]
         for i in xrange(num_entries):
@@ -244,7 +251,7 @@ def main():
         return
 
     # Get the 2D histogram
-    hist = get_calo_image(tree, bins=50)
+    hist = get_calo_image(tree, bins=args.bins)
     # Get sample metadata
     mglu, mneu, xsec, sumw = get_meta_data(tree)
     # Calculate the event weights
