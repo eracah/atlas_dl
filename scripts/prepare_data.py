@@ -129,6 +129,7 @@ def filter_xaod_to_numpy(files, max_events=None):
         'CaloCalTopoClustersAuxDyn.calEta' : 'clusEta',
         'CaloCalTopoClustersAuxDyn.calPhi' : 'clusPhi',
         'CaloCalTopoClustersAuxDyn.calE' : 'clusE',
+        'CaloCalTopoClustersAuxDyn.EM_PROBABILITY' : 'clusEMProb',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.pt' : 'fatJetPt',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.eta' : 'fatJetEta',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.phi' : 'fatJetPhi',
@@ -270,8 +271,11 @@ def main():
 
     # Addition optional outputs
     if args.write_clus:
-        for key in ['clusEta', 'clusPhi', 'clusE']:
-            outputs[key] = tree[key]
+        for key in ['clusEta', 'clusPhi', 'clusE', 'clusEMProb']:
+            try:
+                outputs[key] = tree[key]
+            except KeyError:
+                print('Failed to write missing key:', key)
     if args.write_fjets:
         # Write separate arrays for each variable.
         for key in ['fatJetPt', 'fatJetEta', 'fatJetPhi', 'fatJetM']:
