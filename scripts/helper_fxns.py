@@ -117,11 +117,9 @@ def create_run_dir(results_dir=None):
 
 def dump_hyperparams(dic, path):
     new_dic = {k:str(dic[k]) for k in dic.keys()}
-    with open(path + '/hyperparams.json', 'w') as f:
-        json.dump(new_dic, f)
-#     with open(path + '/hyperparams.pkl','w') as g:
-#         pickle.dump(dic, g)
-    
+    with open(path + '/hyperparams.txt', 'w') as f:
+        for k,v in new_dic.iteritems():
+            f.write(k + ' : ' + v + "\n")
 
 
 

@@ -8,7 +8,8 @@ import argparse
 from scripts.data_loader import *
 from scripts.helper_fxns import *
 from scripts.print_n_plot import *
-from scripts.build_network import *
+import scripts.binary_classif_convnet as bcc
+import scripts.conv_ae_anom as caen
 from scripts.train_val import *
 import warnings
 import lasagne
@@ -26,19 +27,22 @@ from os.path import join
 
 def setup_kwargs():
     
-    default_args = {'input_shape': tuple([None] + [1, 50, 50]), 
-                      'learning_rate': 0.01, 
+    default_args = {'input_shape': tuple([None] + [1, 64, 64]), 
+                      'learning_rate': 0.001, 
                       'dropout_p': 0, 
-                      'weight_decay': 0, #0.0001, 
+                      'weight_decay': 0,
                       'num_filters': 10, 
                       'num_fc_units': 32,
-                      'num_layers': 4,
+                      'num_layers': 3,
                       'momentum': 0.9,
                       'num_epochs': 20000,
                       'batch_size': 128,
-                     "save_path": "None",
-                    "num_events": 1000,
-                    "sig_eff_at": 0.9996}
+                      "save_path": "None",
+                      "num_events": 10000,
+                      "sig_eff_at": 0.9996,
+                      "test":False, "seed": 7,
+                      "mode":"classif",
+                      "ae":False}
     
     
     # if inside a notebook, then get rid of weird notebook arguments, so that arg parsing still works
@@ -64,7 +68,7 @@ def setup_kwargs():
     run_dir = create_run_dir(save_path)
     kwargs['save_path'] = run_dir
     kwargs["logger"] = get_logger(kwargs['save_path'])
-    
+
     return kwargs
 
 
@@ -73,21 +77,36 @@ if __name__ == "__main__":
     
     kwargs = setup_kwargs()
     
-    h5_prefix = "/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/prod003_2016_11_14"
+    h5_prefix = "/global/cscratch1/sd/racah/atlas_h5/"
     
-    dl = DataLoader(bg_cfg_file=[join(h5_prefix, "jetjet_JZ4.h5"),
-                                 join(h5_prefix, "jetjet_JZ5.h5")],
-                    sig_cfg_file=join(h5_prefix, "GG_RPV10_1400_850.h5"),
+    loader_kwargs = dict(bg_cfg_file=[join(h5_prefix, "train_jetjet_JZ%i.h5"% (i)) for i in range(3,12)],
+                    sig_cfg_file=join(h5_prefix, "train_GG_RPV10_1400_850.h5"),
                     num_events=kwargs["num_events"], 
                     type_="hdf5",
-                    use_premade=True)
-    tr,val = dl.load_data()
-
+                    use_premade=False,
+                       test=kwargs["test"],
+                       desired_dims={"phi":64, "eta": 64})
+    
+    if kwargs["mode"] == "anomaly":
+        dl = AnomalyLoader(**loader_kwargs)
+    else:
+        dl = DataLoader(**loader_kwargs)
+    data = dl.load_data()
+    
+    kwargs["input_shape"] = tuple([None] + list(data["tr"]["x"].shape[1:]))
+    kwargs["num_train"], kwargs["num_val"] = data["tr"]["x"].shape[0], data["val"]["x"].shape[0]
     kwargs["logger"].info(str(kwargs))
-    networks, fns = build_network(kwargs, build_layers(kwargs))
-    tv = TrainVal(tr,val, kwargs, fns, networks)
-    for epoch in range(kwargs["num_epochs"]):
-        tv.do_one_epoch()
+    dump_hyperparams(dic=kwargs,path=kwargs["save_path"])
+    if kwargs["ae"]:
+        net = caen
+    else:
+        net = bcc
+    networks, fns = net.build_network(kwargs, net.build_layers(kwargs))
+    
+    
+    tv = TrainVal(data, kwargs, fns, networks)
+    tv.train()
+
     
     
     
