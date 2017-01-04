@@ -115,6 +115,7 @@ class TrainVal(object):
         #signal confidence
         y = data["y"]
         w = data["w"]
+        w_raw = data["raw_w"]
         
         
         cuts = data["psr"]
@@ -124,7 +125,7 @@ class TrainVal(object):
         
 
         cuts_bg_rej = bg_rej_sig_eff(cuts,y,w)["bg_rej"]
-        for d in [ams(pred,y, w),
+        for d in [ams(pred,y, w_raw, self.kwargs["event_frac"]),
                   bg_rej_sig_eff(pred,y,w),
                   sig_eff_at(cuts_bg_rej, pred,y,w,name="cuts_bg_rej"),
                   sig_eff_at(0.9999, pred,y,w)]:
@@ -135,7 +136,7 @@ class TrainVal(object):
                     self.metrics[key] = []
                 self.metrics[key].append(v)
 
-        for d in [ams(cuts,y, w),
+        for d in [ams(cuts,y, w_raw,self.kwargs["event_frac"] ),
                   bg_rej_sig_eff(cuts,y,w)]:
 
             for k,v in d.iteritems():

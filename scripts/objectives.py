@@ -7,8 +7,10 @@ import numpy as np
 
 
 
-def ams(pred,gt, weights):
-    pred =convert_bool_or_conf_to_int(pred)
+def ams(pred,gt, weights,ev_frac):
+    #TODO: use original weights and scale by (fraction of total events of used)
+    weights = weights / ev_frac
+    pred = convert_bool_or_conf_to_int(pred)
     br = 10
     #weighted true positives
     s = sum([weights[i] if gt[i]==1. and pred[i]==1. else 0. for i in range(gt.shape[0])])

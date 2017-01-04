@@ -17,6 +17,7 @@ import h5py
 #from helper_fxns import suppress_stdout_stderr
 import copy
 import pickle
+import re
 #sys.path.append('/global/homes/w/wbhimji/cori-envs/nersc-rootpy/lib/python2.7/site-packages/')
 
 
@@ -64,119 +65,28 @@ def preprocess(x, max_abs=None):
 
 
 class DataLoader(object):
-    def __init__(self, bg_cfg_file = './config/BgFileListAug16.txt',
-                sig_cfg_file='./config/SignalFileListAug16.txt',
-                type_ = "hdf5",
-                num_events=50000,
-                preprocess=True,
-                bin_size=0.025,
-                eta_range = [-5,5],
-                phi_range = [-3.14, 3.14], 
-                tr_prop=0.8,
-                use_premade=True,
-                seed=3, 
-                test = False, 
-                desired_dims={"phi":None, "eta":None}):
+    def __init__(self, 
+                 bg_cfg_file = './config/BgFileListAug16.txt',
+                 sig_cfg_file='./config/SignalFileListAug16.txt',
+                 events_fraction=0.1,
+                 preproc=True,
+                 tr_prop=0.8,
+                 seed=3, 
+                 test = False):
         
         
-        self.desired_dims = desired_dims
         self.bg_files = bg_cfg_file if isinstance(bg_cfg_file, list) else [bg_cfg_file]
         self.sig_files = sig_cfg_file if isinstance(sig_cfg_file, list) else [sig_cfg_file]
         self.all_files = self.bg_files + self.sig_files
         self.test = test
-
+        self.preproc = preproc
         self.tr_prop = tr_prop
-        self.eta_range = eta_range
-        self.phi_range = phi_range
-        self.bin_size = bin_size
-        self.make_bins()
-
-
         self.seed = seed
-        assert num_events != 0, "whoa no events?!"
-        self.num_events = num_events
+        assert events_fraction >= 0 and events_fraction <= 1. , "whoa events between 0 and 1!"
+        self.events_fraction = events_fraction
         
-
-       
-#         self.fil_dict = self.get_file_metadata()
-
-        
-        self.use_premade = use_premade
-        self.type_ = type_
-
-#         self.file_type = "hdf5"
-#         self.set_h5_cfgs()
-        
-
-    def make_bins(self):
-        
-        phi_dim, eta_dim = self.desired_dims["phi"], self.desired_dims["eta"]
-        if phi_dim is None:
-            phi_diff = self.phi_range[1] - self.phi_range[0]
-            self.phi_bins = int(np.floor((phi_diff) / self.bin_size))
-        else:
-            self.phi_bins = phi_dim
-        if eta_dim is None:
-            eta_diff = self.eta_range[1] - self.eta_range[0]
-            self.eta_bins = int(np.floor((eta_diff) / self.bin_size))
-        else:
-            self.eta_bins = eta_dim
-        
-    
-#     def get_file_metadata(self):
-#         dirname = os.path.dirname(self.bg_files[0])
-#         fil_dict = pickle.load(open(join(dirname,"file_max_inds.pkl")))
-#         return fil_dict
-    
-    
-#     def set_h5_cfgs(self):
-#         self.group_prefix = "event_"
-#         self.h5keys = ['clusE',
-#                        'clusEta',
-#                        'clusPhi']
          
-    
-    def grab_events(self, file_list, num_events, start=0):
-        files_dict = {k:[] for k in ["w", "x", "psr"]}
-        
-        if len(file_list) > 0:
-
-            num_events = num_events / len(file_list) if num_events != -1 else -1
-            for file_ in file_list:
-                files_dict = self.grab_file(file_,
-                                             num_events,
-                                             files_dict)
-
-            files_dict = self.vstack_all(files_dict)
-
-            
-            
-        return files_dict
-    
-    def grab_file(self, file_, num_events,files_dict):
-        file_dict = self._grab_hdf5_events(file_, num_events , start=0)
-        
-        for k, v in file_dict.iteritems():
-            files_dict[k].append(v)
-        
-        
-        return files_dict  #,rest_of_events_dict
-        
-
-    def _grab_hdf5_events(self,file_, num_events, start):
-        h5f = h5py.File(file_)
-        print file_
-        
-        all_events = h5f["all_events"]
-        num_events_in_file = all_events["hist"].shape[0]
-        if num_events == -1 or num_events > num_events_in_file:
-            num_events = num_events_in_file
-            
-        arr_slice = slice(0,num_events)
-        x,w,psr = [np.expand_dims(all_events[k][arr_slice],axis=1) for k in ["hist", "weight", "passSR"]]
-        
-        return dict(x=x, w=w, psr=psr)        
-    
+          
     def vstack_all(self, data):
         for k,v in data.iteritems():
             data[k] = np.vstack(tuple(v))
@@ -193,14 +103,55 @@ class DataLoader(object):
 
    
 
-    def get_data_block(self):
-                        
-        #because we use weights -> we just pull the same number of events from each file
-        num_bg = int((float(self.num_events) / len(self.all_files)) * len(self.bg_files)) if self.num_events !=-1 else -1
-        num_sig = int((float(self.num_events) / len(self.all_files)) * len(self.sig_files)) if self.num_events !=-1 else -1
         
-        bg = self.grab_events(self.bg_files, num_bg)
-        sig = self.grab_events(self.sig_files, num_sig)
+    def _grab_hdf5_events(self,file_, start):
+        h5f = h5py.File(file_)
+        print file_
+        
+        all_events = h5f["all_events"]
+        num_events_in_file = all_events["hist"].shape[0]
+        
+        num_events = int(np.ceil(self.events_fraction * num_events_in_file))
+            
+        arr_slice = slice(0,num_events)
+        x,w,psr = [np.expand_dims(all_events[k][arr_slice],axis=1) for k in ["hist", "weight", "passSR"]]
+        filename = os.path.basename(file_)
+        jz = [int(filename.split("JZ")[-1].split(".h5")[0]) if "jet" in filename else -1]
+        rpv1 = [int(filename.split(".h5")[0].split("_")[3]) if "jet" not in filename else -1]
+        rpv2 = [int(filename.split(".h5")[0].split("_")[4]) if "jet" not in filename else -1]
+        lbls = dict(jz=jz, rpv1=rpv1, rpv2=rpv2)
+        lbls = {k:np.expand_dims(num_events*v, axis=1) for k,v in lbls.iteritems()}
+        data =  dict(x=x, w=w, psr=psr)  
+        data.update(lbls)
+        return data
+        
+    def grab_file(self, file_,files_dict):
+        file_dict = self._grab_hdf5_events(file_, start=0)
+        
+        for k, v in file_dict.iteritems():
+            files_dict[k].append(v)
+        
+        
+        return files_dict
+    
+    
+    def grab_events(self, file_list, start=0):
+        files_dict = {k:[] for k in ["w", "x", "psr", "jz", "rpv1", "rpv2"]}
+        
+        if len(file_list) > 0:
+
+            for file_ in file_list:
+                files_dict = self.grab_file(file_, files_dict)
+
+            files_dict = self.vstack_all(files_dict)
+
+            
+            
+        return files_dict
+    
+    def get_data_block(self):
+        bg = self.grab_events(self.bg_files)
+        sig = self.grab_events(self.sig_files)
         if len(sig[sig.keys()[0]]) > 0:
             if len(bg[bg.keys()[0]]) > 0:
                 data = {k:np.vstack((bg[k], sig[k])) for k in bg.keys()}
@@ -234,23 +185,30 @@ class DataLoader(object):
         data = shuffle(data)
         if not self.test:
             data = split_train_val(self.tr_prop, data)
-        data = self.preprocess(data, keys=["x", "w"])
+        if self.preproc:
+            data = self.preprocess(data, keys=["x", "w"], raw=["w"])
 
-            
-        
-
-        
+               
         return data
 
     
-    def preprocess(self, data, keys=["x"]):
+    def preprocess(self, data, keys=["x"], raw=["w"]):
         
         if not self.test:
             for k in keys:
+                tr = copy.deepcopy(data["tr"][k])
+                val = copy.deepcopy(data["val"][k])
+                if k in raw:
+                    data["tr"]["raw_"+ k] = tr
+                    data["val"]["raw_" + k] = val
                 data["tr"][k],tm = preprocess(data["tr"][k])
                 data["val"][k], _ = preprocess(data["val"][k],tm)
+
         else:
             for k in keys:
+                dat = copy.deepcopy(data[k])
+                if k in raw:
+                    data["raw_"+ k] = dat
                 data[k], _  = preprocess(data[k]) 
             data = {"test":data}
         return data
@@ -280,10 +238,7 @@ class AnomalyLoader(DataLoader):
         data = self.preprocess(data)
         return data
 
-            
-        
-
-        
+                    
     def split_train_val_anom(self,prop, data):
         tr_prop = prop
         
@@ -352,31 +307,25 @@ def run_split():
     bg_cfg_file=[join(h5_prefix, "jetjet_JZ%i.h5"% (i)) for i in range(3,12)]
     sig_cfg_file=[join(h5_prefix, "GG_RPV10_1400_850.h5")]
     file_list = bg_cfg_file + sig_cfg_file
-    split_train_test_files(file_path_list=file_list)
+    print file_list
+    #split_train_test_files(file_path_list=file_list)
     
-
-
-
-
 
 
 
 if __name__=="__main__":
-    run_split()
-#     h5_prefix = "/global/cscratch1/sd/racah/atlas_h5"
+    #run_split()
+    h5_prefix = "/global/cscratch1/sd/racah/atlas_h5"
     
 
-#     dl = DataLoader(bg_cfg_file=[join(h5_prefix, "jetjet_JZ%i.h5"% (i)) for i in range(3,12)],
-#                     sig_cfg_file=join(h5_prefix, "GG_RPV10_1400_850.h5"),
-#                num_events=10000, 
-#                type_="hdf5",
-#               use_premade=True, test=False, bin_size=0.1)
+    dl = DataLoader(bg_cfg_file=[join(h5_prefix, "train_jetjet_JZ%i.h5"% (i)) for i in range(4,12)],
+                    sig_cfg_file=join(h5_prefix, "train_GG_RPV10_1400_850.h5"),
+               events_fraction=0.05, test=False, preproc=True)
 
-#     data= dl.load_data()
-#     h5_prefix = "/global/cscratch1/sd/racah/atlas_h5/"
-#     bg_cfg_file=[join(h5_prefix, "jetjet_JZ%i.h5"% (i)) for i in range(6,12)]
-#     sig_cfg_file=[join(h5_prefix, "GG_RPV10_1400_850.h5")]
+    data= dl.load_data()
 
-#     split_train_test_files(bg_cfg_file + sig_cfg_file)
+
+
+
 
 

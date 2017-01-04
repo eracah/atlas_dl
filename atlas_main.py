@@ -38,7 +38,7 @@ def setup_kwargs():
                       'num_epochs': 20000,
                       'batch_size': 128,
                       "save_path": "None",
-                      "num_events": 10000,
+                      "event_frac": 0.001,
                       "sig_eff_at": 0.9996,
                       "test":False, "seed": 7,
                       "mode":"classif",
@@ -81,11 +81,8 @@ if __name__ == "__main__":
     
     loader_kwargs = dict(bg_cfg_file=[join(h5_prefix, "train_jetjet_JZ%i.h5"% (i)) for i in range(3,12)],
                     sig_cfg_file=join(h5_prefix, "train_GG_RPV10_1400_850.h5"),
-                    num_events=kwargs["num_events"], 
-                    type_="hdf5",
-                    use_premade=False,
-                       test=kwargs["test"],
-                       desired_dims={"phi":64, "eta": 64})
+                    events_fraction=kwargs["event_frac"], 
+                       test=kwargs["test"])
     
     if kwargs["mode"] == "anomaly":
         dl = AnomalyLoader(**loader_kwargs)
