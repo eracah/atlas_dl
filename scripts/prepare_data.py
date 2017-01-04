@@ -106,6 +106,7 @@ def filter_delphes_to_numpy(files, max_events=None):
         'Tower.Eta' : 'clusEta',
         'Tower.Phi' : 'clusPhi',
         'Tower.E' : 'clusE',
+        'Tower.Eem' : 'clusEM',
         'FatJet.PT' : 'fatJetPt',
         'FatJet.Eta' : 'fatJetEta',
         'FatJet.Phi' : 'fatJetPhi',
@@ -129,7 +130,7 @@ def filter_xaod_to_numpy(files, max_events=None):
         'CaloCalTopoClustersAuxDyn.calEta' : 'clusEta',
         'CaloCalTopoClustersAuxDyn.calPhi' : 'clusPhi',
         'CaloCalTopoClustersAuxDyn.calE' : 'clusE',
-        'CaloCalTopoClustersAuxDyn.EM_PROBABILITY' : 'clusEMProb',
+        'CaloCalTopoClustersAuxDyn.EM_PROBABILITY' : 'clusEM',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.pt' : 'fatJetPt',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.eta' : 'fatJetEta',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.phi' : 'fatJetPhi',
@@ -271,7 +272,7 @@ def main():
 
     # Addition optional outputs
     if args.write_clus:
-        for key in ['clusEta', 'clusPhi', 'clusE', 'clusEMProb']:
+        for key in ['clusEta', 'clusPhi', 'clusE', 'clusEM']:
             try:
                 outputs[key] = tree[key]
             except KeyError:
