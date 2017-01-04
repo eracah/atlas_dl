@@ -118,7 +118,7 @@ def filter_delphes_to_numpy(files, max_events=None):
     if tree is None:
         return None
     # Fix units
-    for key in ['clusE', 'fatJetPt', 'fatJetM']:
+    for key in ['clusE', 'clusEM', 'fatJetPt', 'fatJetM']:
         tree[key] = tree[key]*1e3
     # Apply physics
     return process_events(tree)
