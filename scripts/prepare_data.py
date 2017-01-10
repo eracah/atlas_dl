@@ -43,7 +43,7 @@ def parse_args():
     add_arg('--write-mass', action='store_true',
             help='Write RPV theory mass params to output')
     add_arg('--bins', default=64, type=int,
-            help='the number of bins aka the dimensions of the hist data')
+            help='The number of bins aka the dimensions of the hist data')
     return parser.parse_args()
 
 def get_tree(files, branch_dict, tree_name='CollectionTree', max_events=None):
@@ -112,6 +112,7 @@ def filter_delphes_to_numpy(files, max_events=None):
         'FatJet.Phi' : 'fatJetPhi',
         'FatJet.Mass' : 'fatJetM',
     }
+
     # Convert the data to numpy
     print('Now processing:', files)
     tree = get_tree(files, branch_dict, tree_name='Delphes', max_events=max_events)
@@ -120,6 +121,7 @@ def filter_delphes_to_numpy(files, max_events=None):
     # Fix units
     for key in ['clusE', 'clusEM', 'fatJetPt', 'fatJetM']:
         tree[key] = tree[key]*1e3
+
     # Apply physics
     return process_events(tree)
 
@@ -200,7 +202,7 @@ def write_hdf5(filename, outputs):
 
     # Open the output file
     with h5py.File(filename, 'w') as hf:
-        #create one big h5f group
+        # Create one big h5f group
         g = hf.create_group('all_events')
         for key, data in outputs.iteritems():
             if key in ["hist", "passSR4J", "passSR5J", "passSR", "weight"]:
@@ -223,10 +225,9 @@ def main():
     for input_list in args.input_file_list:
         with open(input_list) as f:
             input_files.extend(map(str.rstrip, f.readlines()))
-    print('Processing %i input files' % len(input_files))
+    print('Processing %i %s input files' % (len(input_files), args.input_type))
 
     # Configure for delphes or xaod
-    print(args.input_type)
     if args.input_type == 'xaod':
         filter_func = filter_xaod_to_numpy
     else:
@@ -246,11 +247,12 @@ def main():
         # Run the conversion and filter directly
         data = filter_func(input_files, args.max_events)
 
-    #print('Array shape and types:', data.shape, data.dtype)
     tree = data['tree']
     if tree.shape[0] == 0:
         print('No events selected by filter. Exiting.')
         return
+
+    # TODO: put all data in the data dict
 
     # Get the 2D histogram
     hist = get_calo_image(tree, bins=args.bins)
