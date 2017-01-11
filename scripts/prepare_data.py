@@ -18,7 +18,8 @@ from physics_selections import (filter_objects, filter_events,
                                 sum_fatjet_mass, fatjet_deta12,
                                 pass_sr4j, pass_sr5j,
                                 is_signal_region_event)
-from weights import get_rpv_params, get_bkg_xsec, get_sumw
+from weights import (get_xaod_rpv_params, get_xaod_bkg_xsec, get_xaod_sumw,
+                     get_delphes_xsec, get_delphes_sumw)
 from utils import suppress_stdout_stderr
 
 
@@ -182,26 +183,35 @@ def merge_results(dicts):
         result[key] = np.concatenate([d[key] for d in dicts])
     return result
 
-def get_meta_data(tree):
+def get_meta_data_delphes(sample_names):
+    if sample_names is None:
+        print('WARNING: no sample_names => no metadata => no event weights')
+        return None, None, None, None
+    # TODO: parse these out from the sample name
+    mglu, mneu = None, None
+    xsec = np.vectorize(get_delphes_xsec)(sample_names)
+    sumw = np.vectorize(get_delphes_sumw)(sample_names)
+    return mglu, mneu, xsec, sumw
+
+def get_meta_data_xaod(dsids):
     """Use the dsid to get sample metadata like xsec"""
-    try:
-        dsids = tree['dsid']
-    except ValueError:
+    if dsids is None:
         print('WARNING: no dsid => no metadata => no event weights')
         return None, None, None, None
     # Try to get RPV metadata
     try:
-        mglu, mneu, xsec = np.vectorize(get_rpv_params)(dsids)
+        mglu, mneu, xsec = np.vectorize(get_xaod_rpv_params)(dsids)
     except KeyError:
-        mglu, mneu, xsec = None, None, np.vectorize(get_bkg_xsec)(dsids)
+        mglu, mneu, xsec = None, None, np.vectorize(get_xaod_bkg_xsec)(dsids)
     # Get the sum of generator weights
-    sumw = np.vectorize(get_sumw)(dsids)
+    sumw = np.vectorize(get_xaod_sumw)(dsids)
     return mglu, mneu, xsec, sumw
 
 def get_event_weights(xsec, mcw, sumw, lumi=36000):
     """Calculate event weights"""
     # Need to extract the first entry of the generator weights per event
-    mcw = np.vectorize(lambda g: g[0])(mcw)
+    if type(mcw) == np.ndarray:
+        mcw = np.vectorize(lambda g: g[0])(mcw)
     return xsec * mcw * lumi / sumw
 
 def write_hdf5(filename, outputs):
@@ -271,7 +281,13 @@ def main():
     data['hist'] = get_calo_image(tree, bins=args.bins)
 
     # Get sample metadata
-    mglu, mneu, xsec, sumw = get_meta_data(tree)
+    if args.input_type == 'xaod':
+        mglu, mneu, xsec, sumw = get_meta_data_xaod(tree['dsid'])
+        mcw = tree['genWeight']
+    else:
+        mglu, mneu, xsec, sumw = get_meta_data_delphes(data.get('sample', None))
+        mcw = 1
+
     # Calculate the event weights
     data['weight'] = (get_event_weights(xsec, mcw, sumw)
                       if sumw is not None else None)
