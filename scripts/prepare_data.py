@@ -156,7 +156,8 @@ def filter_xaod_to_numpy(files, max_events=None):
     }
     # Convert the data to numpy
     print('Now processing:', files)
-    tree = get_tree(files, branch_dict, tree_name='CollectionTree', max_events=max_events)
+    tree = get_tree(files, branch_dict, tree_name='CollectionTree',
+                    max_events=max_events)
     if tree is None:
         return None
     # Apply physics
@@ -309,9 +310,7 @@ def main():
             except KeyError:
                 print('Failed to write missing key:', key)
     if args.write_fjets:
-        # Write separate arrays for each variable.
-        for key in ['fatJetPt', 'fatJetEta', 'fatJetPhi', 'fatJetM']:
-            outputs[key] = data[key]
+        output_keys += ['fatJetPt', 'fatJetEta', 'fatJetPhi', 'fatJetM']
     if args.write_mass:
         if mglu is not None:
             outputs['mGlu'] = mglu
