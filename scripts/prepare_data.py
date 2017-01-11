@@ -43,6 +43,8 @@ def parse_args():
             help='Write fat jet info to output')
     add_arg('--write-mass', action='store_true',
             help='Write RPV theory mass params to output')
+    add_arg('--write-tracks', action='store_true',
+            help='Write ID track variables')
     add_arg('--bins', default=64, type=int,
             help='The number of bins aka the dimensions of the hist data')
     return parser.parse_args()
@@ -112,6 +114,8 @@ def filter_delphes_to_numpy(files, max_events=None):
         'FatJet.Eta' : 'fatJetEta',
         'FatJet.Phi' : 'fatJetPhi',
         'FatJet.Mass' : 'fatJetM',
+        'Track.Eta' : 'trackEta',
+        'Track.Phi' : 'trackPhi',
     }
 
     # Convert the data to numpy
@@ -125,6 +129,11 @@ def filter_delphes_to_numpy(files, max_events=None):
 
     # Apply physics
     results = process_events(tree)
+    skimTree = results['tree']
+
+    # Move the track kinematics for consistency with xaod
+    for key in ['trackEta', 'trackPhi']:
+        results[key] = skimTree[key]
 
     # Get the sample config string from the filenames.
     # For now, out of laziness, allow only one sample at a time.
@@ -153,6 +162,8 @@ def filter_xaod_to_numpy(files, max_events=None):
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.m' : 'fatJetM',
         'EventInfoAuxDyn.mcChannelNumber' : 'dsid',
         'EventInfoAuxDyn.mcEventWeights' : 'genWeight',
+        'InDetTrackParticlesAuxDyn.theta' : 'trackTheta',
+        'InDetTrackParticlesAuxDyn.phi' : 'trackPhi',
     }
     # Convert the data to numpy
     print('Now processing:', files)
@@ -161,7 +172,17 @@ def filter_xaod_to_numpy(files, max_events=None):
     if tree is None:
         return None
     # Apply physics
-    return process_events(tree)
+    results = process_events(tree)
+    skimTree = results['tree']
+
+    # Get the track coordinates
+    vtan = np.vectorize(np.tan, otypes=[np.ndarray])
+    vlog = np.vectorize(np.log, otypes=[np.ndarray])
+    trackTheta = skimTree['trackTheta']
+    results['trackEta'] = -vlog(vtan(trackTheta / 2))
+    results['trackPhi'] = skimTree['trackPhi']
+
+    return results
 
 def get_calo_image(tree, xkey='clusEta', ykey='clusPhi', wkey='clusE',
                    bins=100, xlim=[-2.5, 2.5], ylim=[-3.15, 3.15]):
@@ -316,6 +337,8 @@ def main():
             outputs['mGlu'] = mglu
         if mneu is not None:
             outputs['mNeu'] = mneu
+    if args.write_tracks:
+        output_keys += ['trackEta', 'trackPhi']
 
     for key in output_keys:
         try:
