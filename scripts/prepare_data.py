@@ -268,12 +268,13 @@ def main():
     # TODO: put all data in the data dict
 
     # Get the 2D histogram
-    hist = get_calo_image(tree, bins=args.bins)
+    data['hist'] = get_calo_image(tree, bins=args.bins)
+
     # Get sample metadata
     mglu, mneu, xsec, sumw = get_meta_data(tree)
     # Calculate the event weights
-    weight = (get_event_weights(xsec, tree['genWeight'], sumw)
-              if sumw is not None else None)
+    data['weight'] = (get_event_weights(xsec, mcw, sumw)
+                      if sumw is not None else None)
 
     # Signal region flags
     passSR4J = data['passSR4J']
@@ -281,9 +282,8 @@ def main():
     passSR = data['passSR']
 
     # Dictionary of output data
-    outputs = dict(hist=hist, passSR4J=passSR4J, passSR5J=passSR5J, passSR=passSR)
-    if weight is not None:
-        outputs['weight'] = weight
+    outputs = {}
+    output_keys = ['hist', 'passSR4J', 'passSR5J', 'passSR', 'weight']
 
     # Addition optional outputs
     if args.write_clus:
@@ -302,8 +302,16 @@ def main():
         if mneu is not None:
             outputs['mNeu'] = mneu
 
+    for key in output_keys:
+        try:
+            outputs[key] = data[key]
+        except KeyError:
+            print('Failed to write missing key:', key)
+            raise
+
     # Print some summary information
     print('SR4J selected events: %d / %d' % (np.sum(passSR4J), tree.size))
+    weight = data['weight']
     if weight is not None:
         print('SR4J weighted events: %f' % np.sum(weight[passSR4J]))
     print('SR5J selected events: %d / %d' % (np.sum(passSR5J), tree.size))
