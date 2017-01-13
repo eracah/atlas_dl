@@ -104,6 +104,10 @@ def process_events(tree):
 
 def filter_delphes_to_numpy(files, max_events=None):
     """Processes some files by converting to numpy and applying filtering"""
+
+    if type(files) != list:
+        files = [files]
+
     # Branch name remapping for convenience
     branch_dict = {
         'Tower.Eta' : 'clusEta',
