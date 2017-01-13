@@ -140,7 +140,7 @@ def filter_delphes_to_numpy(files, max_events=None):
     # NOTE: this assumes a particular naming convention of the delphes files!!
     samples = map(lambda s: os.path.basename(s).split('-')[0], files)
     if np.unique(samples).size > 1:
-        raise Exception('Mixing delphes samples not yet supported. Tell Steve')
+        raise Exception('Mixing delphes samples not yet supported: ' + str(samples))
 
     # Store the sample name for metadata lookups
     num_event = results['tree'].shape[0]
