@@ -2,12 +2,18 @@ import numpy as np
 
 """
 This module contains some cross section and theory param data for the xAOD
-samples. At the bottom are three helper functions to retrieve the values.
+and Delphes samples. At the bottom are three helper functions to retrieve the
+values.
 """
+
+#-------------------------------------------------------------------------------
+# xAOD meta data
+#-------------------------------------------------------------------------------
 
 # Dictionary of DSID -> (M_Gluino, M_Neutralino, Xsec)
 # Xsec is given in pb
-rpvMetaDict = {
+# TODO: put all of these things in consistent file format!!
+xaodRPVMetaDict = {
     403550: (700, 450, 3.5251),
     403551: (800, 450, 1.4891),
     403552: (900, 450, 0.677478),
@@ -76,25 +82,43 @@ rpvMetaDict = {
 }
 
 # Data from SUSYTools cross section file
-bkgXsecData = np.genfromtxt('./config/susy_crosssections_13TeV.txt',
-                            dtype='i4,U50,f8,f8,f8,f8',
-                            names=['dsid', 'sample', 'xsec', 'kfac', 'eff', 'unc'])
-bkgXsecDict = dict(zip(bkgXsecData['dsid'],
-                    bkgXsecData['xsec'] * bkgXsecData['kfac'] * bkgXsecData['eff']))
+xaodBkgXsecData = np.genfromtxt('./config/susy_crosssections_13TeV.txt',
+    dtype='i4,U50,f8,f8,f8,f8',
+    names=['dsid', 'sample', 'xsec', 'kfac', 'eff', 'unc'])
+xaodBkgXsecDict = dict(zip(xaodBkgXsecData['dsid'],
+    xaodBkgXsecData['xsec'] * xaodBkgXsecData['kfac'] * xaodBkgXsecData['eff']))
 
 # Sumw data prepared with dump_xaod_sumw.py
-sumwData = np.genfromtxt('./config/sumw.txt', dtype='i4, f8',
+xaodSumwData = np.genfromtxt('./config/sumw.txt', dtype='i4, f8',
                          names=['dsid', 'sumw'])
-sumwDict = dict(zip(sumwData['dsid'], sumwData['sumw']))
+xaodSumwDict = dict(zip(xaodSumwData['dsid'], xaodSumwData['sumw']))
 
-def get_rpv_params(dsid):
+#-------------------------------------------------------------------------------
+# Delphes meta data
+#-------------------------------------------------------------------------------
+delphesXsecData = np.genfromtxt('./config/DelphesXSec', dtype='S30, f8',
+                                names=['dsid', 'xsec'])
+delphesXsecDict = dict(delphesXsecData)
+
+#-------------------------------------------------------------------------------
+# Helper functions
+#-------------------------------------------------------------------------------
+def get_xaod_rpv_params(dsid):
     """Get the mass paramaters and theoretical cross section for a given DS ID"""
-    return rpvMetaDict[dsid]
+    return xaodRPVMetaDict[dsid]
 
-def get_bkg_xsec(dsid):
+def get_xaod_bkg_xsec(dsid):
     """Returns the cross section for a given DS ID"""
-    return bkgXsecDict[dsid]
+    return xaodBkgXsecDict[dsid]
 
-def get_sumw(dsid):
+def get_xaod_sumw(dsid):
     """Get the sum of generator weights for a sample"""
-    return sumwDict[dsid]
+    return xaodSumwDict[dsid]
+
+def get_delphes_xsec(dsid):
+    # Convert to pb
+    return delphesXsecDict[dsid]*1e9
+
+def get_delphes_sumw(dsid):
+    """NOT YET IMPLEMENTED; returns 1"""
+    return 1

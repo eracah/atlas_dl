@@ -18,7 +18,8 @@ from physics_selections import (filter_objects, filter_events,
                                 sum_fatjet_mass, fatjet_deta12,
                                 pass_sr4j, pass_sr5j,
                                 is_signal_region_event)
-from weights import get_rpv_params, get_bkg_xsec, get_sumw
+from weights import (get_xaod_rpv_params, get_xaod_bkg_xsec, get_xaod_sumw,
+                     get_delphes_xsec, get_delphes_sumw)
 from utils import suppress_stdout_stderr
 
 
@@ -42,8 +43,10 @@ def parse_args():
             help='Write fat jet info to output')
     add_arg('--write-mass', action='store_true',
             help='Write RPV theory mass params to output')
+    add_arg('--write-tracks', action='store_true',
+            help='Write ID track variables')
     add_arg('--bins', default=64, type=int,
-            help='the number of bins aka the dimensions of the hist data')
+            help='The number of bins aka the dimensions of the hist data')
     return parser.parse_args()
 
 def get_tree(files, branch_dict, tree_name='CollectionTree', max_events=None):
@@ -101,26 +104,53 @@ def process_events(tree):
 
 def filter_delphes_to_numpy(files, max_events=None):
     """Processes some files by converting to numpy and applying filtering"""
+
+    if type(files) != list:
+        files = [files]
+
     # Branch name remapping for convenience
     branch_dict = {
         'Tower.Eta' : 'clusEta',
         'Tower.Phi' : 'clusPhi',
         'Tower.E' : 'clusE',
+        'Tower.Eem' : 'clusEM',
         'FatJet.PT' : 'fatJetPt',
         'FatJet.Eta' : 'fatJetEta',
         'FatJet.Phi' : 'fatJetPhi',
         'FatJet.Mass' : 'fatJetM',
+        'Track.Eta' : 'trackEta',
+        'Track.Phi' : 'trackPhi',
     }
+
     # Convert the data to numpy
     print('Now processing:', files)
     tree = get_tree(files, branch_dict, tree_name='Delphes', max_events=max_events)
     if tree is None:
         return None
     # Fix units
-    for key in ['clusE', 'fatJetPt', 'fatJetM']:
+    for key in ['clusE', 'clusEM', 'fatJetPt', 'fatJetM']:
         tree[key] = tree[key]*1e3
+
     # Apply physics
-    return process_events(tree)
+    results = process_events(tree)
+    skimTree = results['tree']
+
+    # Move the track kinematics for consistency with xaod
+    for key in ['trackEta', 'trackPhi']:
+        results[key] = skimTree[key]
+
+    # Get the sample config string from the filenames.
+    # For now, out of laziness, allow only one sample at a time.
+    # NOTE: this assumes a particular naming convention of the delphes files!!
+    samples = map(lambda s: os.path.basename(s).split('-')[0], files)
+    if np.unique(samples).size > 1:
+        raise Exception('Mixing delphes samples not yet supported: ' + str(samples))
+
+    # Store the sample name for metadata lookups
+    num_event = results['tree'].shape[0]
+    results['sample'] = np.full(num_event, samples[0], 'S30')
+
+    return results
 
 def filter_xaod_to_numpy(files, max_events=None):
     """Processes some files by converting to numpy and applying filtering"""
@@ -129,21 +159,34 @@ def filter_xaod_to_numpy(files, max_events=None):
         'CaloCalTopoClustersAuxDyn.calEta' : 'clusEta',
         'CaloCalTopoClustersAuxDyn.calPhi' : 'clusPhi',
         'CaloCalTopoClustersAuxDyn.calE' : 'clusE',
-        'CaloCalTopoClustersAuxDyn.EM_PROBABILITY' : 'clusEMProb',
+        'CaloCalTopoClustersAuxDyn.EM_PROBABILITY' : 'clusEM',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.pt' : 'fatJetPt',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.eta' : 'fatJetEta',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.phi' : 'fatJetPhi',
         'AntiKt10LCTopoTrimmedPtFrac5SmallR20JetsAux.m' : 'fatJetM',
         'EventInfoAuxDyn.mcChannelNumber' : 'dsid',
         'EventInfoAuxDyn.mcEventWeights' : 'genWeight',
+        'InDetTrackParticlesAuxDyn.theta' : 'trackTheta',
+        'InDetTrackParticlesAuxDyn.phi' : 'trackPhi',
     }
     # Convert the data to numpy
     print('Now processing:', files)
-    tree = get_tree(files, branch_dict, tree_name='CollectionTree', max_events=max_events)
+    tree = get_tree(files, branch_dict, tree_name='CollectionTree',
+                    max_events=max_events)
     if tree is None:
         return None
     # Apply physics
-    return process_events(tree)
+    results = process_events(tree)
+    skimTree = results['tree']
+
+    # Get the track coordinates
+    vtan = np.vectorize(np.tan, otypes=[np.ndarray])
+    vlog = np.vectorize(np.log, otypes=[np.ndarray])
+    trackTheta = skimTree['trackTheta']
+    results['trackEta'] = -vlog(vtan(trackTheta / 2))
+    results['trackPhi'] = skimTree['trackPhi']
+
+    return results
 
 def get_calo_image(tree, xkey='clusEta', ykey='clusPhi', wkey='clusE',
                    bins=100, xlim=[-2.5, 2.5], ylim=[-3.15, 3.15]):
@@ -166,26 +209,35 @@ def merge_results(dicts):
         result[key] = np.concatenate([d[key] for d in dicts])
     return result
 
-def get_meta_data(tree):
+def get_meta_data_delphes(sample_names):
+    if sample_names is None:
+        print('WARNING: no sample_names => no metadata => no event weights')
+        return None, None, None, None
+    # TODO: parse these out from the sample name
+    mglu, mneu = None, None
+    xsec = np.vectorize(get_delphes_xsec)(sample_names)
+    sumw = np.vectorize(get_delphes_sumw)(sample_names)
+    return mglu, mneu, xsec, sumw
+
+def get_meta_data_xaod(dsids):
     """Use the dsid to get sample metadata like xsec"""
-    try:
-        dsids = tree['dsid']
-    except ValueError:
+    if dsids is None:
         print('WARNING: no dsid => no metadata => no event weights')
         return None, None, None, None
     # Try to get RPV metadata
     try:
-        mglu, mneu, xsec = np.vectorize(get_rpv_params)(dsids)
+        mglu, mneu, xsec = np.vectorize(get_xaod_rpv_params)(dsids)
     except KeyError:
-        mglu, mneu, xsec = None, None, np.vectorize(get_bkg_xsec)(dsids)
+        mglu, mneu, xsec = None, None, np.vectorize(get_xaod_bkg_xsec)(dsids)
     # Get the sum of generator weights
-    sumw = np.vectorize(get_sumw)(dsids)
+    sumw = np.vectorize(get_xaod_sumw)(dsids)
     return mglu, mneu, xsec, sumw
 
 def get_event_weights(xsec, mcw, sumw, lumi=36000):
     """Calculate event weights"""
     # Need to extract the first entry of the generator weights per event
-    mcw = np.vectorize(lambda g: g[0])(mcw)
+    if type(mcw) == np.ndarray:
+        mcw = np.vectorize(lambda g: g[0])(mcw)
     return xsec * mcw * lumi / sumw
 
 def write_hdf5(filename, outputs):
@@ -199,7 +251,7 @@ def write_hdf5(filename, outputs):
 
     # Open the output file
     with h5py.File(filename, 'w') as hf:
-        #create one big h5f group
+        # Create one big h5f group
         g = hf.create_group('all_events')
         for key, data in outputs.iteritems():
             if key in ["hist", "passSR4J", "passSR5J", "passSR", "weight"]:
@@ -222,10 +274,9 @@ def main():
     for input_list in args.input_file_list:
         with open(input_list) as f:
             input_files.extend(map(str.rstrip, f.readlines()))
-    print('Processing %i input files' % len(input_files))
+    print('Processing %i %s input files' % (len(input_files), args.input_type))
 
     # Configure for delphes or xaod
-    print(args.input_type)
     if args.input_type == 'xaod':
         filter_func = filter_xaod_to_numpy
     else:
@@ -245,19 +296,27 @@ def main():
         # Run the conversion and filter directly
         data = filter_func(input_files, args.max_events)
 
-    #print('Array shape and types:', data.shape, data.dtype)
     tree = data['tree']
     if tree.shape[0] == 0:
         print('No events selected by filter. Exiting.')
         return
 
+    # TODO: put all data in the data dict
+
     # Get the 2D histogram
-    hist = get_calo_image(tree, bins=args.bins)
+    data['hist'] = get_calo_image(tree, bins=args.bins)
+
     # Get sample metadata
-    mglu, mneu, xsec, sumw = get_meta_data(tree)
+    if args.input_type == 'xaod':
+        mglu, mneu, xsec, sumw = get_meta_data_xaod(tree['dsid'])
+        mcw = tree['genWeight']
+    else:
+        mglu, mneu, xsec, sumw = get_meta_data_delphes(data.get('sample', None))
+        mcw = 1
+
     # Calculate the event weights
-    weight = (get_event_weights(xsec, tree['genWeight'], sumw)
-              if sumw is not None else None)
+    data['weight'] = (get_event_weights(xsec, mcw, sumw)
+                      if sumw is not None else None)
 
     # Signal region flags
     passSR4J = data['passSR4J']
@@ -265,29 +324,36 @@ def main():
     passSR = data['passSR']
 
     # Dictionary of output data
-    outputs = dict(hist=hist, passSR4J=passSR4J, passSR5J=passSR5J, passSR=passSR)
-    if weight is not None:
-        outputs['weight'] = weight
+    outputs = {}
+    output_keys = ['hist', 'passSR4J', 'passSR5J', 'passSR', 'weight']
 
     # Addition optional outputs
     if args.write_clus:
-        for key in ['clusEta', 'clusPhi', 'clusE', 'clusEMProb']:
+        for key in ['clusEta', 'clusPhi', 'clusE', 'clusEM']:
             try:
                 outputs[key] = tree[key]
             except KeyError:
                 print('Failed to write missing key:', key)
     if args.write_fjets:
-        # Write separate arrays for each variable.
-        for key in ['fatJetPt', 'fatJetEta', 'fatJetPhi', 'fatJetM']:
-            outputs[key] = data[key]
+        output_keys += ['fatJetPt', 'fatJetEta', 'fatJetPhi', 'fatJetM']
     if args.write_mass:
         if mglu is not None:
             outputs['mGlu'] = mglu
         if mneu is not None:
             outputs['mNeu'] = mneu
+    if args.write_tracks:
+        output_keys += ['trackEta', 'trackPhi']
+
+    for key in output_keys:
+        try:
+            outputs[key] = data[key]
+        except KeyError:
+            print('Failed to write missing key:', key)
+            raise
 
     # Print some summary information
     print('SR4J selected events: %d / %d' % (np.sum(passSR4J), tree.size))
+    weight = data['weight']
     if weight is not None:
         print('SR4J weighted events: %f' % np.sum(weight[passSR4J]))
     print('SR5J selected events: %d / %d' % (np.sum(passSR5J), tree.size))
