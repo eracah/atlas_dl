@@ -28,9 +28,9 @@ from os.path import join
 def setup_kwargs():
     
     default_args = {'input_shape': tuple([None] + [1, 64, 64]), 
-                      'learning_rate': 0.001, 
-                      'dropout_p': 0, 
-                      'weight_decay': 0,
+                      'learning_rate': 0.0001, 
+                      'dropout_p': 0.0, 
+                      'weight_decay': 0.0,
                       'num_filters': 10, 
                       'num_fc_units': 32,
                       'num_layers': 3,
@@ -38,7 +38,7 @@ def setup_kwargs():
                       'num_epochs': 20000,
                       'batch_size': 128,
                       "save_path": "None",
-                      "event_frac": 0.001,
+                      "event_frac": 0.0005,
                       "sig_eff_at": 0.9996,
                       "test":False, "seed": 7,
                       "mode":"classif",
