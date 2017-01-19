@@ -7,13 +7,9 @@ import numpy as np
 
 
 
-def calc_ams(pred,gt, weights,ev_frac):
+def calc_ams(pred,gt, weights):
     #TODO: use original weights and scale by (fraction of total events of used)
-    
-    #divide weights by event fraction
-    weights = weights / ev_frac
-    
-    
+
     pred = convert_bool_or_conf_to_int(pred)
     br = 10
     #weighted true positives
@@ -45,10 +41,6 @@ def sig_eff_at(bg_rej, pred,gt,weights=None, name=None):
     roc = roc_vals(pred,gt,weights)
     des_fpr = 1 - bg_rej
     ind = np.searchsorted(roc["fpr"], des_fpr)
-    print ind
-    print roc["tpr"]
-    print roc["fpr"]
-    print roc["thresholds"]
     sig_eff = roc["tpr"][ind]
     bg_rej_string = str(bg_rej) if name is None else name
     return {"sig_eff_at_" + bg_rej_string:sig_eff}

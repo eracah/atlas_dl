@@ -15,7 +15,7 @@ from scripts.util import create_run_dir, get_logger, dump_hyperparams
 def setup_configs():
     
     default_args = {'input_shape': tuple([None] + [1, 64, 64]), 
-                      'learning_rate': 0.0001, 
+                      'learning_rate': 0.00001, 
                       'dropout_p': 0.0, 
                       'weight_decay': 0.0,
                       'num_filters': 128, 
@@ -23,18 +23,17 @@ def setup_configs():
                       'num_layers': 3,
                       'momentum': 0.9,
                       'num_epochs': 20000,
-                      'batch_size': 128,
+                      'batch_size': 1024,
                       "save_path": "None",
-                      "event_frac": 0.005,
+                      "num_tr": -1,
                       "sig_eff_at": 0.9996,
                       "test":False, "seed": 7,
                       "mode":"classif",
                       "ae":False,
-                      "tr_file":"/global/cscratch1/sd/racah/atlas_h5/train/train.h5",
-                      "val_file": "/global/cscratch1/sd/racah/atlas_h5/train/val.h5",
-                      "test_file": "/global/cscratch1/sd/racah/atlas_h5/test/test.h5"
+                      "tr_file":"/home/evan/data/atlas/train.h5",
+                      "val_file": "/home/evan/data/atlas/val.h5",
+                      "test_file": "/home/evan/data/atlas/test.h5"
                    }
-    
     
     # if inside a notebook, then get rid of weird notebook arguments, so that arg parsing still works
     if any(["jupyter" in arg for arg in sys.argv]):
@@ -66,13 +65,15 @@ def setup_configs():
                          keys=["hist", "weight", "normalized_weight", "y"])
     
     kwargs["loader_kwargs"] = loader_kwargs
-    trdi = DataIterator(kwargs["tr_file"],**loader_kwargs)
-    valdi = DataIterator(kwargs["val_file"],**loader_kwargs)
+    trdi = DataIterator(kwargs["tr_file"],num_events=kwargs["num_tr"], **loader_kwargs)
+    num_val = kwargs["num_tr"] if kwargs["num_tr"] == -1 else int(0.2*kwargs["num_tr"])
+    valdi = DataIterator(kwargs["val_file"],num_val,**loader_kwargs)
+    kwargs["num_val"] = num_val
     kwargs["tr_iterator"] = trdi
     kwargs["val_iterator"] = valdi
 
     kwargs["input_shape"] = tuple([None,1] + list(trdi.hgroup["hist"].shape[1:]))
-    kwargs["num_train"], kwargs["num_val"] = trdi.hgroup["hist"].shape[0], valdi.hgroup["hist"].shape[0]
+    #kwargs["num_train"], kwargs["num_val"] = trdi.hgroup["hist"].shape[0], valdi.hgroup["hist"].shape[0]
     kwargs["logger"].info(str(kwargs))
     
     dump_hyperparams(dic=kwargs,path=kwargs["save_path"])

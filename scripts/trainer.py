@@ -57,7 +57,7 @@ class TrainVal(object):
         start_time = time.time()
         batches = 0
         for minibatch in self.iterator(type_):
-            x,y,w = [minibatch[k] for k in ["hist", "y", "weight_normalized"]]
+            x,y,w = [minibatch[k] for k in ["hist", "y", "normalized_weight"]]
             loss = self.fns[type_](x,y,w)
             acc = self.fns["acc"](x,y,w)
             self.mp.add_metrics(dict(loss=loss, acc=acc))

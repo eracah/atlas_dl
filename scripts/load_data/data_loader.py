@@ -65,23 +65,29 @@ def preprocess(x, max_abs=None):
 
 
 class DataIterator(object):
-    def __init__(self, fpath, groupname="all_events", batch_size=128, keys=["hist", "weight", "normalized_weight", "y"]):
+    def __init__(self, fpath, num_events=-1, groupname="all_events", batch_size=128, keys=["hist", "weight", "normalized_weight", "y"]):
         self.hf = h5py.File(fpath)
         self.hgroup = self.hf[groupname]
         self.batch_size = batch_size
         self.keys = keys
-        self.num_events = self.hgroup[keys[0]].shape[0]
+        self.num_events = self.hgroup[keys[0]].shape[0] if num_events == -1 else num_events
     
     def iterate(self):
         hgroup = self.hgroup
-        for start_idx in range(0,self.num_events - self.batch_size + 1, self.batch_size):
-            excerpt = slice(start_idx, start_idx + self.batch_size)
+        for start_idx in range(0,self.num_events, self.batch_size):
+            if start_idx + self.batch_size >= self.num_events:
+                excerpt = slice(start_idx, self.num_events)
+            else:
+                excerpt = slice(start_idx, start_idx + self.batch_size)
             d={k:hgroup[k][excerpt] for k in self.keys}
             if "hist" in d:
-                d["hist"] = np.expand_dims(d["hist"], axis=1)
+                d["hist"] = np.expand_dims(d["hist"], axis=1).astype("float32")
+            if "y" in d:
+                d["y"] = d["y"].astype("int32")
+            yield d
             
     def get_all(self):
-        return {k:self.hgroup[k][:] for k in self.keys}
+        return {k:self.hgroup[k][:self.num_events] for k in self.keys}
         
 
 

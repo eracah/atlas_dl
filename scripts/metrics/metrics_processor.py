@@ -42,13 +42,14 @@ class MetricsProcessor(object):
         self.append_metrics(self.cuts_metrics[type_], key_prefix= type_ + "_phys_cuts_")
     
     def get_data_of_type(self,type_):
-        di = DataIterator(self.kwargs[type_ + "_file"], keys=["passSR",
+        di = DataIterator(self.kwargs[type_ + "_file"],num_events=self.kwargs["num_" + type_], keys=["passSR",
                                                              "weight",
                                                              "normalized_weight",
                                                              "y"])
         d = di.get_all()
-        y, w, w_raw, cuts = [d[k] for k in ["y", "weight", "normalized_weight", "passSR"]]
-        return y, w, w_raw, cuts
+     
+        y, w_raw, w, cuts = [d[k] for k in ["y", "weight", "normalized_weight", "passSR"]]
+        return y, w_raw, w, cuts
 
     def process_metrics(self,type_, pred, time_):
         self.process_acc_metrics(type_, pred)
@@ -59,13 +60,13 @@ class MetricsProcessor(object):
     
     def process_acc_metrics(self, type_, pred):
 
-        y, w, w_raw, cuts = self.get_data_of_type(type_)
+        y, w_raw, w, cuts = self.get_data_of_type(type_)
 
         key_prefix=type_+"_"
 
         cuts_bg_rej = bg_rej_sig_eff(cuts,y,w)["bg_rej"]
 
-        ams = calc_ams(pred,y, w_raw, self.kwargs["event_frac"])
+        ams = calc_ams(pred,y, w_raw)
         se_at_bg_rej = sig_eff_at(cuts_bg_rej, pred,y,w,name="cuts_bg_rej")
 
         self.append_metrics(ams,key_prefix=key_prefix)
@@ -76,10 +77,10 @@ class MetricsProcessor(object):
         cuts_metrics = {}
         for type_ in ["tr", "val"]:
             cuts_metrics[type_] = {}
-            y, w, w_raw, cuts = self.get_data_of_type(type_)
+            y, w_raw, w, cuts = self.get_data_of_type(type_)
 
             key_prefix = type_ + "_phys_cuts_"
-            cuts_ams = calc_ams(cuts,y, w_raw,self.kwargs["event_frac"] )
+            cuts_ams = calc_ams(cuts,y, w_raw)
             cuts_bg_rej_sig_eff = bg_rej_sig_eff(cuts,y,w)
 
 
@@ -89,7 +90,11 @@ class MetricsProcessor(object):
         return cuts_metrics
     
     def plot_roc_curve(self,type_, pred, save_path):
-        y, w, w_raw, cuts = self.get_data_of_type(type_)
+        y, w_raw, w, cuts = self.get_data_of_type(type_)
         plot_roc_curve(pred, y,w, cuts, type_, save_path)
         
+
+
+
+
 

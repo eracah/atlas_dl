@@ -55,10 +55,6 @@ def normalize_all_files():
 
 
 
-normalize_all_files()
-
-
-
 def rename_files(dirpath):
     for fname in os.listdir(dirpath):
         orig_path = join(dirpath, fname)
