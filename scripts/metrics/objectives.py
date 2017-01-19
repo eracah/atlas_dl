@@ -7,7 +7,7 @@ import numpy as np
 
 
 
-def ams(pred,gt, weights,ev_frac):
+def calc_ams(pred,gt, weights,ev_frac):
     #TODO: use original weights and scale by (fraction of total events of used)
     
     #divide weights by event fraction
@@ -24,14 +24,17 @@ def ams(pred,gt, weights,ev_frac):
     ams = np.sqrt(2 * ((s+b+br)*np.log(1 + (s / (b+br))) - s))
     return dict(ams=ams)
 
-def bg_rej_sig_eff(pred,gt,weights, thresh=0.5):
+def bg_rej_sig_eff(pred, gt, weights=None, thresh=0.5):
     
- 
+    if weights is not None:
+        weights = weights.squeeze()
     sig_pred = convert_bool_or_conf_to_int(pred, thresh=thresh)
-    #print sig_pred, gt
+    
     weighted_sig_eff = recall_score(gt,sig_pred, sample_weight=weights)
+
     bg_pred = convert_bool_or_conf_to_int(pred, reverse=True, thresh=thresh)
     gt_bg = convert_bool_or_conf_to_int(gt, reverse=True, thresh=thresh)
+    
     weighted_bg_rej = recall_score(gt_bg,bg_pred, sample_weight=weights)
     
     return dict(sig_eff=weighted_sig_eff, bg_rej=weighted_bg_rej)
@@ -42,6 +45,10 @@ def sig_eff_at(bg_rej, pred,gt,weights=None, name=None):
     roc = roc_vals(pred,gt,weights)
     des_fpr = 1 - bg_rej
     ind = np.searchsorted(roc["fpr"], des_fpr)
+    print ind
+    print roc["tpr"]
+    print roc["fpr"]
+    print roc["thresholds"]
     sig_eff = roc["tpr"][ind]
     bg_rej_string = str(bg_rej) if name is None else name
     return {"sig_eff_at_" + bg_rej_string:sig_eff}
@@ -103,5 +110,9 @@ if __name__ == "__main__":
 
 
     plt.plot(d["fpr"], d["tpr"])
+
+
+
+
 
 

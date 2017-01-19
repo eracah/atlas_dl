@@ -14,6 +14,7 @@ import logging
 #enable importing of notebooks
 from os import makedirs, mkdir
 from os.path import join, exists
+from lasagne.layers import *
 # from print_n_plot import plot_ims_with_boxes, add_bbox, plot_im_with_box
 
 
@@ -97,6 +98,38 @@ def iterate_minibatches(args, batchsize=128, shuffle=False):
         yield [arg[excerpt] for arg in args]
 
 
+
+def save_weights(metrics, kwargs, networks):
+
+    def _save_weights(name,suffix=""):
+        params = get_all_param_values(networks[name])
+        model_dir = join(kwargs['save_path'], "models")
+        makedir_if_not_there(model_dir)
+        pickle.dump(params,open(join(model_dir, name + "_" + suffix + ".pkl"), "w"))
+
+
+    max_metrics = ["val_acc", "val_ams", "val_sig_eff_at_cuts_bg_rej"]
+    min_metrics = ["val_loss"]
+    for k in max_metrics:
+        if len(metrics[k]) > 1:
+            if metrics[k][-1] > max(metrics[k][:-1]):
+                _save_weights("net", "best_" + k)
+
+
+        else:
+            _save_weights("net", "best_" + k)
+    for k in min_metrics:
+        if len(metrics[k]) > 1:
+            if metrics[k][-1] < min(metrics[k][:-1]):
+                _save_weights("net", "best_" + k)
+
+
+
+
+
+    _save_weights("net", "cur")
+
+        
 
 
 

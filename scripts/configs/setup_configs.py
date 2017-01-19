@@ -5,9 +5,10 @@ import matplotlib; matplotlib.use("agg")
 import sys
 import argparse
 from os.path import join
-from data_loader import DataLoader, AnomalyLoader
-from build_network
-from util import create_run_dir, get_logger, dump_hyperparams
+from scripts.load_data.data_loader import DataLoader, AnomalyLoader, DataIterator
+from scripts.networks import binary_classifier as bc
+from scripts.networks import anom_ae as aa
+from scripts.util import create_run_dir, get_logger, dump_hyperparams
 
 
 
@@ -17,19 +18,21 @@ def setup_configs():
                       'learning_rate': 0.0001, 
                       'dropout_p': 0.0, 
                       'weight_decay': 0.0,
-                      'num_filters': 64, 
-                      'num_fc_units': 32,
+                      'num_filters': 128, 
+                      'num_fc_units': 512,
                       'num_layers': 3,
                       'momentum': 0.9,
                       'num_epochs': 20000,
                       'batch_size': 128,
                       "save_path": "None",
-                      "event_frac": 0.0005,
+                      "event_frac": 0.005,
                       "sig_eff_at": 0.9996,
                       "test":False, "seed": 7,
                       "mode":"classif",
                       "ae":False,
-                      "h5_prefix":"/home/evan/data/atlas"
+                      "tr_file":"/global/cscratch1/sd/racah/atlas_h5/train/train.h5",
+                      "val_file": "/global/cscratch1/sd/racah/atlas_h5/train/val.h5",
+                      "test_file": "/global/cscratch1/sd/racah/atlas_h5/test/test.h5"
                    }
     
     
@@ -56,45 +59,31 @@ def setup_configs():
     run_dir = create_run_dir(save_path)
     kwargs['save_path'] = run_dir
     kwargs["logger"] = get_logger(kwargs['save_path'])
-    bg_cfg_file= [join(kwargs["h5_prefix"], "train_jetjet_JZ%i.h5"% (i)) for i in range(3,12)]
-    sig_cfg_file= join(kwargs["h5_prefix"], "train_GG_RPV10_1400_850.h5")
     
     
-    loader_kwargs = dict(bg_cfg_file=bg_cfg_file,
-                    sig_cfg_file=sig_cfg_file,
-                    events_fraction=kwargs["event_frac"], 
-                    test=kwargs["test"])
+    loader_kwargs = dict(groupname="all_events",
+                         batch_size=128, 
+                         keys=["hist", "weight", "normalized_weight", "y"])
     
     kwargs["loader_kwargs"] = loader_kwargs
-    
-    
-        
-    
-    if kwargs["mode"] == "anomaly":
-        dl = AnomalyLoader(**loader_kwargs)
-    else:
-        dl = DataLoader(**loader_kwargs)
-    
-    kwargs["data_loader"] = dl
+    trdi = DataIterator(kwargs["tr_file"],**loader_kwargs)
+    valdi = DataIterator(kwargs["val_file"],**loader_kwargs)
+    kwargs["tr_iterator"] = trdi
+    kwargs["val_iterator"] = valdi
 
-    return kwargs
-
-
-
-def update_configs(kwargs,tr_shape, val_shape):
-    kwargs["input_shape"] = tuple([None] + list(tr_shape[1:]))
-    kwargs["num_train"], kwargs["num_val"] = tr_shape[0], val_shape[0]
+    kwargs["input_shape"] = tuple([None,1] + list(trdi.hgroup["hist"].shape[1:]))
+    kwargs["num_train"], kwargs["num_val"] = trdi.hgroup["hist"].shape[0], valdi.hgroup["hist"].shape[0]
     kwargs["logger"].info(str(kwargs))
     
     dump_hyperparams(dic=kwargs,path=kwargs["save_path"])
     if kwargs["ae"]:
-        net = caen
+        net = aa
     else:
-        net = bcc
+        net = bc
         
     kwargs["net"] = net
+
     return kwargs
-    
 
 
 

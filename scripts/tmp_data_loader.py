@@ -64,28 +64,6 @@ def preprocess(x, max_abs=None):
 
 
 
-class DataIterator(object):
-    def __init__(self, fpath, groupname="all_events", batch_size=128, keys=["hist", "weight", "normalized_weight", "y"]):
-        self.hf = h5py.File(fpath)
-        self.hgroup = self.hf[groupname]
-        self.batch_size = batch_size
-        self.keys = keys
-        self.num_events = self.hgroup[keys[0]].shape[0]
-    
-    def iterate(self):
-        hgroup = self.hgroup
-        for start_idx in range(0,self.num_events - self.batch_size + 1, self.batch_size):
-            excerpt = slice(start_idx, start_idx + self.batch_size)
-            d={k:hgroup[k][excerpt] for k in self.keys}
-            if "hist" in d:
-                d["hist"] = np.expand_dims(d["hist"], axis=1)
-            
-    def get_all(self):
-        return {k:self.hgroup[k][:] for k in self.keys}
-        
-
-
-
 class DataLoader(object):
     def __init__(self, 
                  bg_cfg_file = './config/BgFileListAug16.txt',
@@ -136,7 +114,7 @@ class DataLoader(object):
         num_events = int(np.ceil(self.events_fraction * num_events_in_file))
             
         arr_slice = slice(0,num_events)
-        x,w,psr = [np.expand_dims(all_events[k][arr_slice],axis=1).astype("float32") for k in ["hist", "weight", "passSR"]]
+        x,w,psr = [np.expand_dims(all_events[k][arr_slice],axis=1) for k in ["hist", "weight", "passSR"]]
         filename = os.path.basename(file_)
         jz = [int(filename.split("JZ")[-1].split(".h5")[0]) if "jet" in filename else -1]
         rpv1 = [int(filename.split(".h5")[0].split("_")[3]) if "jet" not in filename else -1]
@@ -285,6 +263,53 @@ class AnomalyLoader(DataLoader):
 
         #dict of dicts, where key is tr, val or test and value is dict of x,y,w,psr, etc.
         return final_data
+
+
+
+def split_train_test_files(file_path_list, test_prop=0.2):
+    
+    def add_to_file(file_name, data_dict):
+        f = h5py.File(file_name, "w")
+        group = f.create_group("all_events")
+        for k in data_dict:
+            group[k] = data_dict[k]
+        f.close()
+        
+    for file_path in file_path_list:
+        print file_path
+        h5f = h5py.File(file_path)
+        all_events = h5f["all_events"]
+        num_events = all_events["hist"].shape[0]
+        
+        num_test = int(test_prop * num_events)
+        
+        test_file_name = join(os.path.dirname(file_path),"test_" + os.path.basename(file_path))
+        train_file_name = join(os.path.dirname(file_path),"train_" + os.path.basename(file_path))
+        
+        inds = np.arange(num_events)
+        np.random.RandomState(11).shuffle(inds)
+        raw_data = {k:all_events[k][:] for k in all_events.keys()}
+        te_data = {k:raw_data[k][inds[:num_test]] for k in all_events.keys()}
+        tr_data = {k:raw_data[k][inds[num_test:]] for k in all_events.keys()}
+        add_to_file(test_file_name, te_data)
+        add_to_file(train_file_name, tr_data)
+        
+        
+    
+        
+    
+        
+
+
+
+def run_split():
+    h5_prefix = "/global/cscratch1/sd/racah/atlas_h5"
+    bg_cfg_file=[join(h5_prefix, "jetjet_JZ%i.h5"% (i)) for i in range(3,12)]
+    sig_cfg_file=[join(h5_prefix, "GG_RPV10_1400_850.h5")]
+    file_list = bg_cfg_file + sig_cfg_file
+    print file_list
+    #split_train_test_files(file_path_list=file_list)
+    
 
 
 

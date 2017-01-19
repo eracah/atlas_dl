@@ -3,10 +3,10 @@ import matplotlib; matplotlib.use("agg")
 
 
 import sys
-from objectives import roc_vals, bg_rej_sig_eff
+from scripts.metrics.objectives import roc_vals, bg_rej_sig_eff
 from matplotlib import pyplot as plt
 from os.path import join, exists
-from util import makedir_if_not_there
+from scripts.util import makedir_if_not_there
 
 
 
@@ -34,8 +34,9 @@ def plot_roc_curve(pred, y,w, cuts, type_, save_path):
             plt.xlabel("False Positive Rate (1- BG rejection)")
             plt.ylabel("True Positive Rate (Signal Efficiency)")
             plt.savefig("%s/%s_roc_curve_%s.png"%(roc_path,type_,name))
-            pass
+            #pass
             plt.clf()
+            
     _plot_roc_curve()
     for i in range(1,6):
         _plot_roc_curve(name="zoomed"+ str(i), xlim=[0,10**-i])
@@ -57,7 +58,8 @@ def plot_learn_curve(metrics, save_path):
         curves_path = join(save_path, "learn_curves")
         makedir_if_not_there(curves_path)
         plt.savefig("%s/%s_learning_curve.png"%(curves_path,type_))
-        #pass
+        if "loss" in type_:
+            pass
         plt.clf()
         
         
