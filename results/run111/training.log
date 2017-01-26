@@ -1,0 +1,344 @@
+{'ae': False, 'num_layers': 3, 'dropout_p': 0.0, 'seed': 7, 'num_epochs': 20000, 'weight_decay': 0.0, 'num_val': -1, 'sig_eff_at': 0.9996, 'save_path': './results/run111', 'num_fc_units': 512, 'test': False, 'logger': <logging.Logger object at 0x7f546c906fd0>, 'val_file': '/home/evan/data/atlas/val.h5', 'momentum': 0.9, 'test_file': '/home/evan/data/atlas/test.h5', 'learning_rate': 1e-05, 'input_shape': (None, 1, 64, 64), 'batch_size': 1024, 'tr_iterator': <scripts.load_data.data_loader.DataIterator object at 0x7f546c90e110>, 'num_tr': -1, 'loader_kwargs': {'keys': ['hist', 'weight', 'normalized_weight', 'y'], 'groupname': 'all_events', 'batch_size': 128}, 'val_iterator': <scripts.load_data.data_loader.DataIterator object at 0x7f546c90e1d0>, 'mode': 'classif', 'num_filters': 128, 'tr_file': '/home/evan/data/atlas/train.h5'}
+<lasagne.layers.input.InputLayer object at 0x7f546d005290>(None, 1, 64, 64)
+<lasagne.layers.conv.Conv2DLayer object at 0x7f546c90e510>(None, 128, 64, 64)
+<lasagne.layers.normalization.BatchNormLayer object at 0x7f546c92ba10>(None, 128, 64, 64)
+<lasagne.layers.special.NonlinearityLayer object at 0x7f546c8c06d0>(None, 128, 64, 64)
+<lasagne.layers.pool.MaxPool2DLayer object at 0x7f546c8c0890>(None, 128, 32, 32)
+<lasagne.layers.conv.Conv2DLayer object at 0x7f546c8c08d0>(None, 128, 32, 32)
+<lasagne.layers.normalization.BatchNormLayer object at 0x7f546c8c0b90>(None, 128, 32, 32)
+<lasagne.layers.special.NonlinearityLayer object at 0x7f546c906c90>(None, 128, 32, 32)
+<lasagne.layers.pool.MaxPool2DLayer object at 0x7f546c906a90>(None, 128, 16, 16)
+<lasagne.layers.conv.Conv2DLayer object at 0x7f546c906990>(None, 128, 16, 16)
+<lasagne.layers.normalization.BatchNormLayer object at 0x7f546c906610>(None, 128, 16, 16)
+<lasagne.layers.special.NonlinearityLayer object at 0x7f546c906410>(None, 128, 16, 16)
+<lasagne.layers.pool.MaxPool2DLayer object at 0x7f546c906950>(None, 128, 8, 8)
+<lasagne.layers.noise.DropoutLayer object at 0x7f546c90e4d0>(None, 128, 8, 8)
+<lasagne.layers.dense.DenseLayer object at 0x7f546c906ad0>(None, 512)
+<lasagne.layers.noise.DropoutLayer object at 0x7f546c8d1250>(None, 512)
+<lasagne.layers.dense.DenseLayer object at 0x7f546c8d1490>(None, 2)
+
+
+<lasagne.layers.input.InputLayer object at 0x7f546d005290> : (None, 1, 64, 64)
+<lasagne.layers.conv.Conv2DLayer object at 0x7f546c90e510> : (None, 128, 64, 64)
+<lasagne.layers.normalization.BatchNormLayer object at 0x7f546c92ba10> : (None, 128, 64, 64)
+<lasagne.layers.special.NonlinearityLayer object at 0x7f546c8c06d0> : (None, 128, 64, 64)
+<lasagne.layers.pool.MaxPool2DLayer object at 0x7f546c8c0890> : (None, 128, 32, 32)
+<lasagne.layers.conv.Conv2DLayer object at 0x7f546c8c08d0> : (None, 128, 32, 32)
+<lasagne.layers.normalization.BatchNormLayer object at 0x7f546c8c0b90> : (None, 128, 32, 32)
+<lasagne.layers.special.NonlinearityLayer object at 0x7f546c906c90> : (None, 128, 32, 32)
+<lasagne.layers.pool.MaxPool2DLayer object at 0x7f546c906a90> : (None, 128, 16, 16)
+<lasagne.layers.conv.Conv2DLayer object at 0x7f546c906990> : (None, 128, 16, 16)
+<lasagne.layers.normalization.BatchNormLayer object at 0x7f546c906610> : (None, 128, 16, 16)
+<lasagne.layers.special.NonlinearityLayer object at 0x7f546c906410> : (None, 128, 16, 16)
+<lasagne.layers.pool.MaxPool2DLayer object at 0x7f546c906950> : (None, 128, 8, 8)
+<lasagne.layers.noise.DropoutLayer object at 0x7f546c90e4d0> : (None, 128, 8, 8)
+<lasagne.layers.dense.DenseLayer object at 0x7f546c906ad0> : (None, 512)
+<lasagne.layers.noise.DropoutLayer object at 0x7f546c8d1250> : (None, 512)
+<lasagne.layers.dense.DenseLayer object at 0x7f546c8d1490> : (None, 2)
+Total Parameters: 4493442
+
+
+Epoch 1 of 20000 took 2023.048s
+		tr_loss:		0.0001
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9667 %
+		tr_ams:		0.0000
+		tr_sig_eff_at_cuts_bg_rej:		37.2247 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.087s
+		val_sig_eff_at_cuts_bg_rej:		35.5682 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9824 %
+		val_ams:		0.0000
+Epoch 2 of 20000 took 2004.058s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9872 %
+		tr_ams:		0.0000
+		tr_sig_eff_at_cuts_bg_rej:		78.9460 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 154.666s
+		val_sig_eff_at_cuts_bg_rej:		70.7677 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9893 %
+		val_ams:		0.0000
+Epoch 3 of 20000 took 1966.494s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9918 %
+		tr_ams:		0.0000
+		tr_sig_eff_at_cuts_bg_rej:		88.2081 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 154.817s
+		val_sig_eff_at_cuts_bg_rej:		82.1321 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9920 %
+		val_ams:		0.0000
+Epoch 4 of 20000 took 1991.871s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9941 %
+		tr_ams:		0.0000
+		tr_sig_eff_at_cuts_bg_rej:		91.1246 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 154.847s
+		val_sig_eff_at_cuts_bg_rej:		85.2162 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9937 %
+		val_ams:		0.0000
+Epoch 5 of 20000 took 2015.372s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9957 %
+		tr_ams:		0.0000
+		tr_sig_eff_at_cuts_bg_rej:		93.9738 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 154.639s
+		val_sig_eff_at_cuts_bg_rej:		89.1720 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9944 %
+		val_ams:		0.0000
+Epoch 6 of 20000 took 1983.891s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9966 %
+		tr_ams:		0.1003
+		tr_sig_eff_at_cuts_bg_rej:		94.6882 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 154.879s
+		val_sig_eff_at_cuts_bg_rej:		87.6634 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9944 %
+		val_ams:		0.0288
+Epoch 7 of 20000 took 1978.938s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9970 %
+		tr_ams:		0.1003
+		tr_sig_eff_at_cuts_bg_rej:		95.3774 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.351s
+		val_sig_eff_at_cuts_bg_rej:		86.6242 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9952 %
+		val_ams:		0.0431
+Epoch 8 of 20000 took 2015.027s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9977 %
+		tr_ams:		0.7352
+		tr_sig_eff_at_cuts_bg_rej:		96.4532 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.496s
+		val_sig_eff_at_cuts_bg_rej:		88.9708 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9953 %
+		val_ams:		0.2276
+Epoch 9 of 20000 took 2017.793s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9981 %
+		tr_ams:		0.8153
+		tr_sig_eff_at_cuts_bg_rej:		96.0750 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.410s
+		val_sig_eff_at_cuts_bg_rej:		83.3054 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9903 %
+		val_ams:		0.1995
+Epoch 10 of 20000 took 2173.261s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9983 %
+		tr_ams:		2.6700
+		tr_sig_eff_at_cuts_bg_rej:		97.4365 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 178.181s
+		val_sig_eff_at_cuts_bg_rej:		87.5293 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9902 %
+		val_ams:		0.6949
+Epoch 11 of 20000 took 2303.352s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9986 %
+		tr_ams:		4.0875
+		tr_sig_eff_at_cuts_bg_rej:		96.6633 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.204s
+		val_sig_eff_at_cuts_bg_rej:		88.3339 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9904 %
+		val_ams:		1.1037
+Epoch 12 of 20000 took 2309.818s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9986 %
+		tr_ams:		8.2064
+		tr_sig_eff_at_cuts_bg_rej:		97.9660 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.711s
+		val_sig_eff_at_cuts_bg_rej:		83.7747 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9852 %
+		val_ams:		2.3689
+Epoch 13 of 20000 took 2311.337s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9989 %
+		tr_ams:		9.5172
+		tr_sig_eff_at_cuts_bg_rej:		98.3863 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 152.958s
+		val_sig_eff_at_cuts_bg_rej:		84.1435 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9900 %
+		val_ams:		2.9080
+Epoch 14 of 20000 took 2313.488s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9992 %
+		tr_ams:		12.5347
+		tr_sig_eff_at_cuts_bg_rej:		98.2182 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.086s
+		val_sig_eff_at_cuts_bg_rej:		80.8247 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9898 %
+		val_ams:		4.0243
+Epoch 15 of 20000 took 2307.864s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9990 %
+		tr_ams:		15.7230
+		tr_sig_eff_at_cuts_bg_rej:		98.6805 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 156.159s
+		val_sig_eff_at_cuts_bg_rej:		75.5280 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9848 %
+		val_ams:		5.2933
+Epoch 16 of 20000 took 2323.905s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9993 %
+		tr_ams:		18.5235
+		tr_sig_eff_at_cuts_bg_rej:		99.1931 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.924s
+		val_sig_eff_at_cuts_bg_rej:		83.8082 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9840 %
+		val_ams:		6.1108
+Epoch 17 of 20000 took 2303.063s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9992 %
+		tr_ams:		19.7044
+		tr_sig_eff_at_cuts_bg_rej:		98.9158 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 155.931s
+		val_sig_eff_at_cuts_bg_rej:		76.3996 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9847 %
+		val_ams:		6.6160
+Epoch 18 of 20000 took 2295.982s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9994 %
+		tr_ams:		22.6202
+		tr_sig_eff_at_cuts_bg_rej:		99.2100 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 150.497s
+		val_sig_eff_at_cuts_bg_rej:		82.9366 %
+		val_loss:		0.0000
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9895 %
+		val_ams:		7.7546
+Epoch 19 of 20000 took 2184.904s
+		tr_loss:		0.0000
+		tr_phys_cuts_sig_eff:		24.4243 %
+		tr_acc:		99.9996 %
+		tr_ams:		27.7862
+		tr_sig_eff_at_cuts_bg_rej:		99.6218 %
+		tr_phys_cuts_ams:		7.1279
+		tr_phys_cuts_bg_rej:		99.9923 %
+	Validation took 147.803s
+		val_sig_eff_at_cuts_bg_rej:		78.5116 %
+		val_loss:		0.0001
+		val_phys_cuts_ams:		3.7668
+		val_phys_cuts_sig_eff:		23.4328 %
+		val_phys_cuts_bg_rej:		99.9945 %
+		val_acc:		99.9560 %
+		val_ams:		9.9354
