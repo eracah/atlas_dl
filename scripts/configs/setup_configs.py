@@ -31,9 +31,9 @@ default_args = {'input_shape': tuple([None] + [1, 64, 64]),
                       "exp_name": "run",
                       "load_path": "None",
                       "num_test": -1,
-                      "tr_file":"/home/evan/data/atlas/train.h5",
-                      "val_file": "/home/evan/data/atlas/val.h5",
-                      "test_file": "/home/evan/data/atlas/test.h5",
+                      "tr_file":"/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/evan_curated/train.h5",
+                      "val_file": "/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/evan_curated/val.h5",
+                      "test_file": "/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/evan_curated/test.h5",
                       "no_batch_norm": False
                    }
 
@@ -95,16 +95,20 @@ def setup_iterators(kwargs):
                          keys=["hist", "weight", "normalized_weight", "y"])
     kwargs["loader_kwargs"] = loader_kwargs
     
-    trdi = DataIterator(kwargs["tr_file"],num_events=kwargs["num_tr"], **loader_kwargs)
-    kwargs["tr_iterator"] = trdi
-    
-    kwargs["num_val"] = kwargs["num_tr"] if kwargs["num_tr"] == -1 else int(0.2*kwargs["num_tr"])
-    valdi = DataIterator(kwargs["val_file"],num_events=kwargs["num_val"],**loader_kwargs)
-    kwargs["val_iterator"] = valdi
-    
-    kwargs["test_iterator"] = DataIterator(kwargs["test_file"],num_events=kwargs["num_test"],**loader_kwargs)
+    if not kwargs["test"]:
+        trdi = DataIterator(kwargs["tr_file"],num_events=kwargs["num_tr"], **loader_kwargs)
+        kwargs["tr_iterator"] = trdi
 
-    kwargs["input_shape"] = tuple([None,1] + list(trdi.hgroup["hist"].shape[1:]))
+        kwargs["num_val"] = kwargs["num_tr"] if kwargs["num_tr"] == -1 else int(0.2*kwargs["num_tr"])
+        valdi = DataIterator(kwargs["val_file"],num_events=kwargs["num_val"],**loader_kwargs)
+        kwargs["val_iterator"] = valdi
+        kwargs["input_shape"] = tuple([None,1] + list(trdi.hgroup["hist"].shape[1:]))
+    
+    else:
+        kwargs["test_iterator"] = DataIterator(kwargs["test_file"],num_events=kwargs["num_test"],**loader_kwargs)
+        kwargs["input_shape"] = tuple([None,1] + list(kwargs["test_iterator"].hgroup["hist"].shape[1:]))
+
+
     return kwargs
 
 
