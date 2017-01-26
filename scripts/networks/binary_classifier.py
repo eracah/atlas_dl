@@ -16,6 +16,7 @@ import sys
 import numpy as np
 #enable importing of notebooks
 import inspect
+import pickle
 
 
 
@@ -69,6 +70,7 @@ def build_network(args, network):
     score_fn = theano.function([X], test_prediction[:,1].T)
     return {"net":network}, {'tr': train_fn, 
                             'val': val_fn,
+                             'test': val_fn,
                             'acc': acc_fn,
                             'out': out_fn, "score":score_fn}
 
@@ -77,7 +79,10 @@ def build_layers(args):
     conv_kwargs = dict(num_filters=args['num_filters'], filter_size=3, pad=1, nonlinearity=relu, W=HeNormal(gain="relu"))
     network = InputLayer(shape=args['input_shape'])
     for lay in range(args['num_layers']):
-        network = batch_norm(Conv2DLayer(network, **conv_kwargs))
+        if args["no_batch_norm"]:
+            network = Conv2DLayer(network, **conv_kwargs)
+        else:
+            network = batch_norm(Conv2DLayer(network, **conv_kwargs))
         network = MaxPool2DLayer(network, pool_size=(2,2),stride=2)
     network = dropout(network, p=args['dropout_p'])
     network = DenseLayer(network,num_units=args['num_fc_units'], nonlinearity=relu) 
@@ -89,10 +94,19 @@ def build_layers(args):
             args["logger"].info(str(layer) + str(layer.output_shape))
     print count_params(layer)
     
+    if args["load_path"] is not "None":
+        network = load_weights(args["load_path"],network)
+
+    
     return network
 
 
-    
+def load_weights(pickle_file_path, network):
+    '''grabs weights from an npz file'''
+    old_params = pickle.load(open(pickle_file_path, 'r'))
+
+    set_all_param_values(network, old_params)
+    return network   
 
 # def auc(pred,gt):
     

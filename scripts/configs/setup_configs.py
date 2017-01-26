@@ -7,14 +7,12 @@ import argparse
 from os.path import join
 from scripts.load_data.data_loader import DataLoader, AnomalyLoader, DataIterator
 from scripts.networks import binary_classifier as bc
-from scripts.networks import anom_ae as aa
+#from scripts.networks import anom_ae as aa
 from scripts.util import create_run_dir, get_logger, dump_hyperparams
 
 
 
-def setup_configs():
-    
-    default_args = {'input_shape': tuple([None] + [1, 64, 64]), 
+default_args = {'input_shape': tuple([None] + [1, 64, 64]), 
                       'learning_rate': 0.00001, 
                       'dropout_p': 0.0, 
                       'weight_decay': 0.0,
@@ -26,14 +24,24 @@ def setup_configs():
                       'batch_size': 1024,
                       "save_path": "None",
                       "num_tr": -1,
-                      "sig_eff_at": 0.9996,
-                      "test":False, "seed": 7,
+                      "test":False, 
+                        "seed": 7,
                       "mode":"classif",
                       "ae":False,
+                      "exp_name": "run",
+                      "load_path": "None",
+                      "num_test": -1,
                       "tr_file":"/home/evan/data/atlas/train.h5",
                       "val_file": "/home/evan/data/atlas/val.h5",
-                      "test_file": "/home/evan/data/atlas/test.h5"
+                      "test_file": "/home/evan/data/atlas/test.h5",
+                      "no_batch_norm": False
                    }
+
+
+
+def setup_configs():
+    
+
     
     # if inside a notebook, then get rid of weird notebook arguments, so that arg parsing still works
     if any(["jupyter" in arg for arg in sys.argv]):
@@ -43,40 +51,26 @@ def setup_configs():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     #make a command line argument for every flag in default args
     for k,v in default_args.iteritems():
-        parser.add_argument('--' + k, type=type(v), default=v, help=k)
+        if type(v) is bool:
+            parser.add_argument('--' + k, action='store_true', help=k)
+        else:
+            parser.add_argument('--' + k, type=type(v), default=v, help=k)
 
     args = parser.parse_args()
     
-    if args.save_path == "None":
-        save_path = None
-    else:
-        save_path = args.save_path
+
 
 
     kwargs = default_args
     kwargs.update(args.__dict__)
-    run_dir = create_run_dir(save_path)
-    kwargs['save_path'] = run_dir
+    
+    
+    kwargs = setup_res_dir(kwargs)
+    
+    kwargs = setup_iterators(kwargs)
+
     kwargs["logger"] = get_logger(kwargs['save_path'])
     
-    
-    loader_kwargs = dict(groupname="all_events",
-                         batch_size=128, 
-                         keys=["hist", "weight", "normalized_weight", "y"])
-    
-    kwargs["loader_kwargs"] = loader_kwargs
-    trdi = DataIterator(kwargs["tr_file"],num_events=kwargs["num_tr"], **loader_kwargs)
-    num_val = kwargs["num_tr"] if kwargs["num_tr"] == -1 else int(0.2*kwargs["num_tr"])
-    valdi = DataIterator(kwargs["val_file"],num_val,**loader_kwargs)
-    kwargs["num_val"] = num_val
-    kwargs["tr_iterator"] = trdi
-    kwargs["val_iterator"] = valdi
-
-    kwargs["input_shape"] = tuple([None,1] + list(trdi.hgroup["hist"].shape[1:]))
-    #kwargs["num_train"], kwargs["num_val"] = trdi.hgroup["hist"].shape[0], valdi.hgroup["hist"].shape[0]
-    kwargs["logger"].info(str(kwargs))
-    
-    dump_hyperparams(dic=kwargs,path=kwargs["save_path"])
     if kwargs["ae"]:
         net = aa
     else:
@@ -84,7 +78,45 @@ def setup_configs():
         
     kwargs["net"] = net
 
+
+    #kwargs["num_train"], kwargs["num_val"] = trdi.hgroup["hist"].shape[0], valdi.hgroup["hist"].shape[0]
+    kwargs["logger"].info(str(kwargs))
+    
+    dump_hyperparams(dic=kwargs,path=kwargs["save_path"])
+
+
     return kwargs
+
+
+
+def setup_iterators(kwargs):
+    loader_kwargs = dict(groupname="all_events",
+                         batch_size=kwargs["batch_size"], 
+                         keys=["hist", "weight", "normalized_weight", "y"])
+    kwargs["loader_kwargs"] = loader_kwargs
+    
+    trdi = DataIterator(kwargs["tr_file"],num_events=kwargs["num_tr"], **loader_kwargs)
+    kwargs["tr_iterator"] = trdi
+    
+    kwargs["num_val"] = kwargs["num_tr"] if kwargs["num_tr"] == -1 else int(0.2*kwargs["num_tr"])
+    valdi = DataIterator(kwargs["val_file"],num_events=kwargs["num_val"],**loader_kwargs)
+    kwargs["val_iterator"] = valdi
+    
+    kwargs["test_iterator"] = DataIterator(kwargs["test_file"],num_events=kwargs["num_test"],**loader_kwargs)
+
+    kwargs["input_shape"] = tuple([None,1] + list(trdi.hgroup["hist"].shape[1:]))
+    return kwargs
+
+
+
+def setup_res_dir(kwargs):
+    if kwargs["save_path"]== "None":
+        kwargs["save_path"] = None
+
+    run_dir = create_run_dir(kwargs["save_path"], name=kwargs["exp_name"])
+    kwargs['save_path'] = run_dir
+    return kwargs
+    
 
 
 

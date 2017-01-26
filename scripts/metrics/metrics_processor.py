@@ -75,7 +75,11 @@ class MetricsProcessor(object):
         
     def get_cuts_metrics(self):
         cuts_metrics = {}
-        for type_ in ["tr", "val"]:
+        if self.kwargs["test"]:
+            types = ["test"]
+        else:
+            types = ["tr", "val"]
+        for type_ in types:
             cuts_metrics[type_] = {}
             y, w_raw, w, cuts = self.get_data_of_type(type_)
 

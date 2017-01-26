@@ -19,7 +19,7 @@ from lasagne.layers import *
 
 
 
-def create_run_dir(results_dir=None):
+def create_run_dir(results_dir=None, name=None):
   if results_dir == None:
       results_dir = './results'
   
@@ -44,9 +44,11 @@ def create_run_dir(results_dir=None):
   f.seek(0)
 
   f.write(str(run_num))
-
-
-  run_dir = os.path.join(results_dir,'run%i'%(run_num))
+  if name is None:
+      fname = 'run'
+  else:
+      fname = name
+  run_dir = os.path.join(results_dir,fname + str(run_num))
   os.mkdir(run_dir)
   return run_dir
 

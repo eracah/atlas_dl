@@ -13,7 +13,10 @@ if __name__ == "__main__":
     configs = setup_configs()
     networks, fns = configs["net"].build_network(configs, configs["net"].build_layers(configs))
     tv = TrainVal(configs, fns, networks)
-    tv.train()
+    if configs["test"]:
+        tv.test()
+    else:
+        tv.train()
 
     
     
