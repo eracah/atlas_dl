@@ -1,5 +1,5 @@
 # atlas_dl
-## running the code on Cori
+## Running the code on Cori
 
 ### Training on N examples
 * ./run_cori.sh --num_tr N
@@ -34,5 +34,5 @@
 
 
 
-## running the code on GPU number K for N example
+## running the code on GPU number K for N examples
 * ./run_maeve.sh K --num_tr N
