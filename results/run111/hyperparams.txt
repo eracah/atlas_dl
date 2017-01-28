@@ -1,0 +1,25 @@
+ae : False
+num_epochs : 20000
+dropout_p : 0.0
+seed : 7
+num_layers : 3
+num_val : -1
+weight_decay : 0.0
+sig_eff_at : 0.9996
+save_path : ./results/run111
+test : False
+logger : <logging.Logger object at 0x7f546c906fd0>
+learning_rate : 1e-05
+momentum : 0.9
+mode : classif
+test_file : /home/evan/data/atlas/test.h5
+val_file : /home/evan/data/atlas/val.h5
+input_shape : (None, 1, 64, 64)
+batch_size : 1024
+tr_iterator : <scripts.load_data.data_loader.DataIterator object at 0x7f546c90e110>
+num_tr : -1
+loader_kwargs : {'keys': ['hist', 'weight', 'normalized_weight', 'y'], 'groupname': 'all_events', 'batch_size': 128}
+val_iterator : <scripts.load_data.data_loader.DataIterator object at 0x7f546c90e1d0>
+num_fc_units : 512
+num_filters : 128
+tr_file : /home/evan/data/atlas/train.h5

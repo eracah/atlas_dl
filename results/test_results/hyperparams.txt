@@ -1,0 +1,30 @@
+ae : False
+num_epochs : 20000
+dropout_p : 0.0
+seed : 7
+num_layers : 3
+num_val : -1
+weight_decay : 0.0
+sig_eff_at : 0.9996
+exp_name : 
+load_path : ./results/run111/models/net_best_val_loss.pkl
+save_path : ./results/122
+test : True
+logger : <logging.Logger object at 0x7f2bdd872510>
+learning_rate : 1e-05
+momentum : 0.9
+mode : classif
+test_file : /home/evan/data/atlas/test.h5
+val_file : /home/evan/data/atlas/val.h5
+num_test : -1
+input_shape : (None, 1, 64, 64)
+batch_size : 1024
+tr_iterator : <scripts.load_data.data_loader.DataIterator object at 0x7f2bdd872310>
+net : <module 'scripts.networks.binary_classifier' from '/home/evan/atlas_dl/scripts/networks/binary_classifier.pyc'>
+num_tr : -1
+test_iterator : <scripts.load_data.data_loader.DataIterator object at 0x7f2bdd872450>
+loader_kwargs : {'keys': ['hist', 'weight', 'normalized_weight', 'y'], 'groupname': 'all_events', 'batch_size': 1024}
+val_iterator : <scripts.load_data.data_loader.DataIterator object at 0x7f2bdd872390>
+num_fc_units : 512
+num_filters : 128
+tr_file : /home/evan/data/atlas/train.h5
