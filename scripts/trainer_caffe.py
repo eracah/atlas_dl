@@ -35,9 +35,8 @@ class TrainVal(object):
         print_results(self.kwargs, self.epoch, self.mp.metrics)
     
     def iterator(self,type_):
-        return self.kwargs[type_ +"_iterator"].iterate()
-    
-   
+        for item in self.kwargs[type_ +"_iterator"]:
+            yield item
     
     def train_one_epoch(self):
         self._do_one_epoch(type_="tr")
@@ -48,7 +47,7 @@ class TrainVal(object):
         self.epoch += 1
         
     def _do_one_epoch(self, type_="tr"):
-        print "beginning epoch %i %s" % (self.epoch, type_)
+        print("beginning epoch %i %s" % (self.epoch, type_))
         self.do_learn_loop(type_)
         self.postprocess(type_)
     
