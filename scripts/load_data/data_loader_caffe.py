@@ -119,6 +119,25 @@ class DataIterator(object):
             
         #return result
         return tmphgroup
+    
+    
+    #returns all the data in one big dictionary. HANDLE WITH CARE, it can easily overflow memory!
+    def get_all(self):
+        result={}
+        
+        #load first
+        f=h5py.File(self.files[0],'r')
+        for key in self.keys:
+            result[key]=f[key].value
+        f.close()
+        #load the rest
+        for fname in self.files[1:]:
+            f=h5py.File(fname,'r')
+            for key in self.keys:
+                result[key]=np.concatenate([result[key],f[key].value])
+            f.close()
+        #return result
+        return result
 
 
 

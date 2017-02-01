@@ -99,12 +99,12 @@ def setup_iterators(kwargs):
     if not kwargs["test"]:
         #training
         trdi = DataIterator(kwargs["trainfiles"], batch_size=kwargs["batch_size"], keys=loader_kwargs['keys'])
-        kwargs["tr_iterator"] = trdi
-        kwargs["num_tr"] = trdi.num_events
+        kwargs["train_iterator"] = trdi
+        kwargs["num_train"] = trdi.num_events
         #validation
         valdi = DataIterator(kwargs["validationfiles"], batch_size=kwargs["batch_size"], keys=loader_kwargs['keys'])
-        kwargs["val_iterator"] = valdi
-        kwargs["num_val"] = valdi.num_events
+        kwargs["validation_iterator"] = valdi
+        kwargs["num_validation"] = valdi.num_events
         
         #shape
         kwargs["input_shape"] = tuple([None] + list(trdi.hgroup[kwargs["datakey"]].shape[1:]))

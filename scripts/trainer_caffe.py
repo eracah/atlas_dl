@@ -34,19 +34,19 @@ class TrainVal(object):
         self._do_one_epoch(type_="test")
         print_results(self.kwargs, self.epoch, self.mp.metrics)
     
-    def iterator(self,type_):
-        for item in self.kwargs[type_ +"_iterator"]:
-            yield item
+    #def iterator(self,type_):
+    #    for item in self.kwargs[type_ +"_iterator"]:
+    #        yield item
     
     def train_one_epoch(self):
-        self._do_one_epoch(type_="tr")
-        self._do_one_epoch(type_="val")
+        self._do_one_epoch(type_="train")
+        self._do_one_epoch(type_="validation")
         save_weights(self.mp.metrics, self.kwargs, self.networks)
         plot_learn_curve(self.mp.metrics, self.kwargs["save_path"])
         print_results(self.kwargs, self.epoch, self.mp.metrics)
         self.epoch += 1
         
-    def _do_one_epoch(self, type_="tr"):
+    def _do_one_epoch(self, type_="train"):
         print("beginning epoch %i %s" % (self.epoch, type_))
         self.do_learn_loop(type_)
         self.postprocess(type_)
@@ -55,8 +55,8 @@ class TrainVal(object):
                 
         start_time = time.time()
         batches = 0
-        for minibatch in self.iterator(type_):
-            x,y,w = [minibatch[k] for k in ["hist", "y", "normalized_weight"]]
+        for minibatch in self.kwargs[type_ +"_iterator"]:
+            x,y,w = [minibatch[k] for k in ["data", "label", "normweight"]]
             loss = self.fns[type_](x,y,w)
             acc = self.fns["acc"](x,y,w)
             self.mp.add_metrics(dict(loss=loss, acc=acc))
@@ -67,8 +67,8 @@ class TrainVal(object):
     
     def fprop(self,type_):
         pred = []
-        for minibatch in self.iterator(type_):
-            x = minibatch["hist"]
+        for minibatch in self.kwargs[type_ +"_iterator"]:
+            x = minibatch["data"]
             p = self.fns["score"](x)
             pred.extend(p)
         return pred
