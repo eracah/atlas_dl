@@ -123,7 +123,7 @@ class DataIterator(object):
 
 
 if __name__=="__main__":
-    #run_split()
+    #set the filelists
     mainpath='/global/cscratch1/sd/tkurth/atlas_dl/data_delphes'
     trainfiles=[mainpath+'/'+x for x in os.listdir(mainpath) if x.startswith('hep_training_')]
     validationfiles=[mainpath+'/'+x for x in os.listdir(mainpath) if x.startswith('hep_validation_')]

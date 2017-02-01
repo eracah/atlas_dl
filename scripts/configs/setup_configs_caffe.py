@@ -4,6 +4,7 @@ import matplotlib; matplotlib.use("agg")
 
 import sys
 import argparse
+import os
 from os.path import join
 import scripts.load_data.data_loader_caffe as dl
 from scripts.load_data.data_loader_caffe import DataIterator
@@ -12,7 +13,7 @@ from scripts.util import create_run_dir, get_logger, dump_hyperparams
 
 
 
-default_args = {'input_shape': tuple([None] + [3, 224, 224]), 
+default_args = {'input_shape': tuple([None] + [3, 224, 224]),
                       'learning_rate': 0.00001, 
                       'dropout_p': 0.5,
                       'leakiness': 0.1,
@@ -31,14 +32,14 @@ default_args = {'input_shape': tuple([None] + [3, 224, 224]),
                       "exp_name": "run",
                       "load_path": "None",
                       "num_test": -1,
-                      "batch_norm": False
+                      "batch_norm": False,
+                    "datadir": "/global/cscratch1/sd/tkurth/atlas_dl/data_delphes",
+                    "datakey": "data"
                    }
 
 
 
 def setup_configs():
-    
-
     
     # if inside a notebook, then get rid of weird notebook arguments, so that arg parsing still works
     if any(["jupyter" in arg for arg in sys.argv]):
@@ -56,8 +57,6 @@ def setup_configs():
     args = parser.parse_args()
     
 
-
-
     kwargs = default_args
     kwargs.update(args.__dict__)
     
@@ -68,10 +67,8 @@ def setup_configs():
 
     kwargs["logger"] = get_logger(kwargs['save_path'])
     
-    if kwargs["ae"]:
-        net = aa
-    else:
-        net = bc
+    #only classifier so far
+    net = bc
         
     kwargs["net"] = net
 
@@ -87,12 +84,17 @@ def setup_configs():
 
 
 def setup_iterators(kwargs):
+    mainpath=kwargs['datadir']
+    trainfiles=[mainpath+'/'+x for x in os.listdir(mainpath) if x.startswith('hep_training_')]
+    validationfiles=[mainpath+'/'+x for x in os.listdir(mainpath) if x.startswith('hep_validation_')]
+    testfiles=[mainpath+'/'+x for x in os.listdir(mainpath) if x.startswith('hep_test_')]
+    
     loader_kwargs = dict(batch_size=kwargs["batch_size"],
-                         trainfiles=dl.trainfiles,
-                         validationfiles=dl.validationfiles,
-                         testfiles=dl.testfiles,
                          keys=["data", "label", "normweight", "weight"])
     kwargs["loader_kwargs"] = loader_kwargs
+    kwargs["trainfiles"]=trainfiles
+    kwargs["validationfiles"]=validationfiles
+    kwargs["testfiles"]=testfiles
     
     if not kwargs["test"]:
         #training
@@ -105,7 +107,7 @@ def setup_iterators(kwargs):
         kwargs["num_val"] = valdi.num_events
         
         #shape
-        kwargs["input_shape"] = tuple([None] + list(trdi.data.shape[1:]))
+        kwargs["input_shape"] = tuple([None] + list(trdi.hgroup[kwargs["datakey"]].shape[1:]))
     
     else:
         #test
@@ -114,7 +116,7 @@ def setup_iterators(kwargs):
         kwargs["num_test"] = tsdi.num_events
         
         #shape
-        kwargs["input_shape"] = tuple([None] + list(tsdi.data.shape[1:]))
+        kwargs["input_shape"] = tuple([None] + list(tsdi.hgroup[kwargs["datakey"]].shape[1:]))
 
     return kwargs
 
