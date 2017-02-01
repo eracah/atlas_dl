@@ -9,7 +9,7 @@ from os.path import join, exists
 from os import makedirs, mkdir
 from scripts.plotting.curve_plotter import plot_roc_curve, plot_learn_curve
 from scripts.util import makedir_if_not_there, iterate_minibatches, save_weights
-from scripts.metrics.metrics_processor import MetricsProcessor
+from scripts.metrics.metrics_processor_caffe import MetricsProcessor
 from scripts.printing.print_utils import *
 import time
 from lasagne.layers import *

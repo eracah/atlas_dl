@@ -90,10 +90,10 @@ if __name__ == "__main__":
     weights = test_w
 
     pred = test_pred
-    print ams(pred,gt, weights, 0.05)
-    print bg_rej_sig_eff(pred,gt,weights)
+    print(ams(pred,gt, weights, 0.05))
+    print(bg_rej_sig_eff(pred,gt,weights))
     
-    print sig_eff_at(0.9996, pred,gt,weights)
+    print(sig_eff_at(0.9996, pred,gt,weights))
     d= roc_vals(pred, gt, weights)
             
             

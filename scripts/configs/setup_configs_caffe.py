@@ -5,10 +5,9 @@ import matplotlib; matplotlib.use("agg")
 import sys
 import argparse
 from os.path import join
-import scripts.load_data_caffe.data_loader as dl
-from scripts.load_data_caffe.data_loader import DataIterator
+import scripts.load_data.data_loader_caffe as dl
+from scripts.load_data.data_loader_caffe import DataIterator
 from scripts.networks import binary_classifier_caffe as bc
-#from scripts.networks import anom_ae as aa
 from scripts.util import create_run_dir, get_logger, dump_hyperparams
 
 
@@ -92,7 +91,7 @@ def setup_iterators(kwargs):
                          trainfiles=dl.trainfiles,
                          validationfiles=dl.validationfiles,
                          testfiles=dl.testfiles,
-                         keys={"datakey": "data", "labelkey": "label", "normweightkey":"normweight", "weightkey":"weight"})
+                         keys=["data", "label", "normweight", "weight"])
     kwargs["loader_kwargs"] = loader_kwargs
     
     if not kwargs["test"]:

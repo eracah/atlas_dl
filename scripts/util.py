@@ -29,7 +29,7 @@ def create_run_dir(results_dir=None, name=None):
 
 
   if not os.path.exists(run_num_file):
-      print "making run num file...."
+      print("making run num file....")
       f = open(run_num_file,'w')
       f.write('0')
       f.close()

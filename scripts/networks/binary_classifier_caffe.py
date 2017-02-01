@@ -95,7 +95,7 @@ def build_layers(args):
     for layer in get_all_layers(network):
         if "logger" in args:
             args["logger"].info(str(layer) + str(layer.output_shape))
-    print count_params(layer)
+    print(count_params(layer))
     
     if args["load_path"] is not "None":
         network = load_weights(args["load_path"],network)

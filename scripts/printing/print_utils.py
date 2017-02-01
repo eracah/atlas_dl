@@ -16,7 +16,6 @@ def print_network(networks, kwargs):
         kwargs['logger'].info("\n")
     for net in networks.values():
         _print_network(net)
-            
 
 
 
@@ -38,7 +37,7 @@ def print_results(kwargs, epoch, metrics):
                         kwargs['logger'].info("\t\t" + k + ":\t\t{:.4f}".format(val))
     else:
             for k,v in metrics.iteritems():
-                print k,v
+                print(k,v)
         
         
 
