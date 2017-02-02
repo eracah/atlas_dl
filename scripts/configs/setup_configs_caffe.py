@@ -89,6 +89,14 @@ def setup_iterators(kwargs):
     validationfiles=[mainpath+'/'+x for x in os.listdir(mainpath) if x.startswith('hep_validation_')]
     testfiles=[mainpath+'/'+x for x in os.listdir(mainpath) if x.startswith('hep_test_')]
     
+    
+    #DEBUG
+    trainfiles=trainfiles[0:3]
+    validationfiles=validationfiles[0:3]
+    testfiles=testfiles[0:3]
+    #DEBUG
+    
+    
     loader_kwargs = dict(batch_size=kwargs["batch_size"],
                          keys=["data", "label", "normweight", "weight"])
     kwargs["loader_kwargs"] = loader_kwargs

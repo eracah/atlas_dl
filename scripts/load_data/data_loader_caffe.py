@@ -76,6 +76,7 @@ class DataIterator(object):
             for key in self.keys:
                 self.hgroup[key]=self.hgroup[key][reindex]
     
+    
     #next function
     def __next__(self):
         #grep data
@@ -110,7 +111,7 @@ class DataIterator(object):
                 #prefetch the file
                 self.load_next_file()
                 #fetch the missing data:
-                rlength=self.batch_size-tmpdata.shape[0]
+                rlength=self.batch_size-tmphgroup[self.keys[0]].shape[0]
                 for key in self.keys:
                     tmphgroup[key]=np.concatenate([tmphgroup[key],self.hgroup[key][0:rlength]],axis=0)
                 self.event_index=rlength
@@ -119,6 +120,11 @@ class DataIterator(object):
             
         #return result
         return tmphgroup
+    
+    
+    #backwards compatibility
+    def next(self):
+        return self.__next__()
     
     
     #returns all the data in one big dictionary. HANDLE WITH CARE, it can easily overflow memory!

@@ -38,6 +38,7 @@ class TrainVal(object):
     #    for item in self.kwargs[type_ +"_iterator"]:
     #        yield item
     
+    
     def train_one_epoch(self):
         self._do_one_epoch(type_="train")
         self._do_one_epoch(type_="validation")
@@ -46,21 +47,25 @@ class TrainVal(object):
         print_results(self.kwargs, self.epoch, self.mp.metrics)
         self.epoch += 1
         
+        
     def _do_one_epoch(self, type_="train"):
         print("beginning epoch %i %s" % (self.epoch, type_))
         self.do_learn_loop(type_)
         self.postprocess(type_)
-    
+        
+        
     def do_learn_loop(self,type_):
-                
         start_time = time.time()
         batches = 0
         for minibatch in self.kwargs[type_ +"_iterator"]:
+            batch_time = time.time()
             x,y,w = [minibatch[k] for k in ["data", "label", "normweight"]]
             loss = self.fns[type_](x,y,w)
             acc = self.fns["acc"](x,y,w)
             self.mp.add_metrics(dict(loss=loss, acc=acc))
             batches += 1
+            print("batch number: ",batches," time[s] = ",time.time()-batch_time)
+            
         self.epoch_time = time.time() - start_time
                 
         self.mp.finalize_epoch_metrics(batches)

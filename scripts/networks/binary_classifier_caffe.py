@@ -69,8 +69,8 @@ def build_network(args, network):
     acc_fn = theano.function([X, Y, W], test_acc)
     out_fn = theano.function([X], test_prediction)
     score_fn = theano.function([X], test_prediction[:,1].T)
-    return {"net":network}, {'tr': train_fn, 
-                            'val': val_fn,
+    return {"net":network}, {'train': train_fn, 
+                            'validation': val_fn,
                              'test': val_fn,
                             'acc': acc_fn,
                             'out': out_fn, "score":score_fn}
