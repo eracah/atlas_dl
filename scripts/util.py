@@ -108,10 +108,10 @@ def save_weights(metrics, kwargs, networks):
         model_dir = join(kwargs['save_path'], "models")
         makedir_if_not_there(model_dir)
         pickle.dump(params,open(join(model_dir, name + "_" + suffix + ".pkl"), "w"))
-
-
-    max_metrics = ["val_acc", "val_ams", "val_sig_eff_at_cuts_bg_rej"]
-    min_metrics = ["val_loss"]
+    
+    
+    max_metrics = ["validation_acc", "validation_ams", "validation_sig_eff_at_cuts_bg_rej"]
+    min_metrics = ["validation_loss"]
     for k in max_metrics:
         if len(metrics[k]) > 1:
             if metrics[k][-1] > max(metrics[k][:-1]):
@@ -124,9 +124,6 @@ def save_weights(metrics, kwargs, networks):
         if len(metrics[k]) > 1:
             if metrics[k][-1] < min(metrics[k][:-1]):
                 _save_weights("net", "best_" + k)
-
-
-
 
 
     _save_weights("net", "cur")

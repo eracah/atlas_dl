@@ -10,9 +10,9 @@ from scripts.util import makedir_if_not_there
 
 
 
-def plot_roc_curve(pred, y,w, cuts, type_, save_path):
+def plot_roc_curve(pred, y, w, cuts, type_, save_path):
     def _plot_roc_curve(name="",xlim=[0,1], ylim=[0,1] ):
-
+            
             #signal preds
             roc = roc_vals(pred, y, w)
             roc_path = join(save_path, "roc_curves")
@@ -50,8 +50,8 @@ def plot_learn_curve(metrics, save_path):
         plt.figure(1)
         plt.clf()
         plt.title('Train/Val %s' %(type_))
-        plt.plot(metrics['tr_' + type_], label='train ' + type_)
-        plt.plot(metrics['val_' + type_], label='val ' + type_)
+        plt.plot(metrics['train_' + type_], label='train ' + type_)
+        plt.plot(metrics['validation_' + type_], label='validation ' + type_)
         plt.legend( loc = 'center left', bbox_to_anchor = (1.0, 0.5),
            ncol=2)
 

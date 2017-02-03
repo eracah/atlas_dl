@@ -29,7 +29,7 @@ def get_atlas_h5group(filepath, key="all_events"):
 def make_empty_dict_of_file(filepath):
     fgroup, h5f = get_atlas_h5group(filepath)
     ed = {k : np.empty(tuple([0] + list(v.shape[1:]))) for k,v in fgroup.iteritems()}
-    ed["y"] = np.empty((0,))
+    ed["label"] = np.empty((0,))
     h5f.close()
     return ed
     
@@ -70,16 +70,16 @@ def preprocess(x, max_abs=None):
 
     return x, max_abs
 
-def preproc_file(fpath, max_val_dict={"weight": None,"hist": None}):
+def preproc_file(fpath, max_val_dict={"weight": None,"data": None}):
     fgroup, h5f = get_atlas_h5group(fpath)
-    hist_normalized, x_max_abs = preprocess(fgroup["hist"][:], max_val_dict["hist"])
-    fgroup["hist"][:] = hist_normalized
+    hist_normalized, x_max_abs = preprocess(fgroup["data"][:], max_val_dict["data"])
+    fgroup["data"][:] = hist_normalized
     nw, w_max_abs = preprocess(fgroup["weight"][:], max_val_dict["weight"])
     
-    fgroup.create_dataset(name="normalized_weight", data=nw)
+    fgroup.create_dataset(name="normweight", data=nw)
     h5f.close()
     
-    return {"weight": w_max_abs,"hist": x_max_abs}
+    return {"weight": w_max_abs,"data": x_max_abs}
 
 
 

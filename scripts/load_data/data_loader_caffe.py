@@ -20,7 +20,7 @@ import re
 
 
 class DataIterator(object):
-    def __init__(self, filelist, batch_size=128, shuffle=True, keys=["data","label","weight","normweight"]):
+    def __init__(self, filelist, batch_size=128, shuffle=True, allow_fractional_batches=False, keys=["data","label","weight","normweight"]):
         #keys
         self.keys=keys
         #batchsize and indices
@@ -30,6 +30,8 @@ class DataIterator(object):
         self.num_files=len(self.files)
         #store the shuffle state
         self.shuffle=shuffle
+        #allow fractional batches?
+        self.allow_fractional_batches=allow_fractional_batches
         #file and event indices:
         self.file_index=0
         self.event_index=0
@@ -54,6 +56,15 @@ class DataIterator(object):
     
     #iterator
     def __iter__(self):
+        #shuffle if requested
+        if self.shuffle:
+            np.random.shuffle(self.files)
+        #reset counters
+        self.file_index=0
+        self.event_index=0
+        #prefetch next
+        self.load_next_file()
+        #and go:
         return self
     
     
@@ -79,6 +90,10 @@ class DataIterator(object):
     
     #next function
     def __next__(self):
+        #stop the iteration here
+        if self.file_index>=self.num_files:
+            raise StopIteration
+        
         #grep data
         #upper index
         upper=np.min([self.dlength,self.event_index+self.batch_size])
@@ -86,27 +101,16 @@ class DataIterator(object):
         tmphgroup={}
         for key in self.keys:
             tmphgroup[key]=self.hgroup[key][self.event_index:upper]
-        
-        #tmpdata=self.data[self.event_index:upper,:,:,:].astype("float32")
-        #tmplabel=self.label[self.event_index:upper].astype("int32")
-        #tmpweight=self.weight[self.event_index:upper].astype("float32")
-        #tmpnweight=self.nweight[self.event_index:upper].astype("float32")
+
         #load new file if needed:
         if self.dlength<=(self.event_index+self.batch_size):
             self.file_index+=1
             
             #check if the epoch is over
             if self.file_index>=self.num_files:
-                #shuffle if requested
-                if self.shuffle:
-                    np.random.shuffle(self.files)
-                #reset indices
-                self.event_index=0
-                self.file_index=0
-                #prefetch next
-                self.load_next_file()
-                #stop the iteration here
-                raise StopIteration
+                #return the remainder
+                if self.allow_fractional_batches:
+                    return tmphgroup
             else:
                 #prefetch the file
                 self.load_next_file()
@@ -117,7 +121,11 @@ class DataIterator(object):
                 self.event_index=rlength
         else:
             self.event_index+=self.batch_size
-            
+        
+        #stop the iteration here
+        if self.file_index>=self.num_files:
+            raise StopIteration
+        
         #return result
         return tmphgroup
     

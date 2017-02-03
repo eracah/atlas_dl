@@ -20,6 +20,7 @@ def calc_ams(pred,gt, weights):
     ams = np.sqrt(2 * ((s+b+br)*np.log(1 + (s / (b+br))) - s))
     return dict(ams=ams)
 
+
 def bg_rej_sig_eff(pred, gt, weights=None, thresh=0.5):
     
     if weights is not None:
@@ -45,17 +46,15 @@ def sig_eff_at(bg_rej, pred,gt,weights=None, name=None):
     bg_rej_string = str(bg_rej) if name is None else name
     return {"sig_eff_at_" + bg_rej_string:sig_eff}
 
+
 def roc_vals(pred, gt, weights=None):
     
-    #pred = convert_bool_or_conf_to_int(pred)
     if weights is None:
-        fpr, tpr, thresholds = roc_curve(gt, pred)
+        fpr, tpr, thresholds = roc_curve(gt, pred, pos_label=1)
     else:
-        fpr, tpr, thresholds = roc_curve(gt, pred, sample_weight=weights)
+        fpr, tpr, thresholds = roc_curve(gt, pred, sample_weight=weights, pos_label=1)
     
     return dict(fpr=fpr, tpr=tpr, thresholds=thresholds)
-        
-
     
     
     

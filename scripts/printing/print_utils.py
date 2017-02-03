@@ -22,10 +22,10 @@ def print_network(networks, kwargs):
 def print_results(kwargs, epoch, metrics):
     if not kwargs["test"]:
         kwargs['logger'].info("Epoch {} of {} took {:.3f}s".format(epoch + 1, kwargs['num_epochs'],
-                                                                  metrics["tr_time"][-1]))
-        for typ in ["tr", "val"]:
-            if typ == "val":
-                kwargs['logger'].info("\tValidation took {:.3f}s".format(metrics["val_time"][-1]))
+                                                                  metrics["train_time"][-1]))
+        for typ in ["train", "validation"]:
+            if typ == "validation":
+                kwargs['logger'].info("\tValidation took {:.3f}s".format(metrics["validation_time"][-1]))
             for k,v in metrics.iteritems():
                 #print k,v
                 val = v[-1][0] if isinstance(v[-1], list) or isinstance(v[-1], np.ndarray)  else v[-1]

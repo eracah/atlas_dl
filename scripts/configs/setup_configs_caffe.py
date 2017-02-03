@@ -91,14 +91,14 @@ def setup_iterators(kwargs):
     
     
     #DEBUG
-    trainfiles=trainfiles[0:3]
-    validationfiles=validationfiles[0:3]
-    testfiles=testfiles[0:3]
+    trainfiles=trainfiles[1:2]
+    validationfiles=validationfiles[1:2]
+    testfiles=testfiles[1:2]
     #DEBUG
     
     
     loader_kwargs = dict(batch_size=kwargs["batch_size"],
-                         keys=["data", "label", "normweight", "weight"])
+                         keys=["data", "label", "normweight", "weight", "psr"])
     kwargs["loader_kwargs"] = loader_kwargs
     kwargs["trainfiles"]=trainfiles
     kwargs["validationfiles"]=validationfiles
@@ -106,11 +106,13 @@ def setup_iterators(kwargs):
     
     if not kwargs["test"]:
         #training
-        trdi = DataIterator(kwargs["trainfiles"], batch_size=kwargs["batch_size"], keys=loader_kwargs['keys'])
+        trdi = DataIterator(kwargs["trainfiles"], batch_size=kwargs["batch_size"], 
+                            allow_fractional_batches=False, keys=loader_kwargs['keys'])
         kwargs["train_iterator"] = trdi
         kwargs["num_train"] = trdi.num_events
         #validation
-        valdi = DataIterator(kwargs["validationfiles"], batch_size=kwargs["batch_size"], keys=loader_kwargs['keys'])
+        valdi = DataIterator(kwargs["validationfiles"], batch_size=kwargs["batch_size"], 
+                             allow_fractional_batches=True, keys=loader_kwargs['keys'])
         kwargs["validation_iterator"] = valdi
         kwargs["num_validation"] = valdi.num_events
         
@@ -119,7 +121,8 @@ def setup_iterators(kwargs):
     
     else:
         #test
-        tsdi = DataIterator(kwargs["testfiles"], batch_size=kwargs["batch_size"], keys=loader_kwargs['keys'])
+        tsdi = DataIterator(kwargs["testfiles"], batch_size=kwargs["batch_size"], 
+                            allow_fractional_batches=True, keys=loader_kwargs['keys'])
         kwargs["test_iterator"] = tsdi
         kwargs["num_test"] = tsdi.num_events
         

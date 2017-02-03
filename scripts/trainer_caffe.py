@@ -29,14 +29,11 @@ class TrainVal(object):
     def train(self):
         for epoch in range(self.kwargs["num_epochs"]):
             self.train_one_epoch()
+
             
     def test(self):
         self._do_one_epoch(type_="test")
         print_results(self.kwargs, self.epoch, self.mp.metrics)
-    
-    #def iterator(self,type_):
-    #    for item in self.kwargs[type_ +"_iterator"]:
-    #        yield item
     
     
     def train_one_epoch(self):
@@ -65,23 +62,37 @@ class TrainVal(object):
             self.mp.add_metrics(dict(loss=loss, acc=acc))
             batches += 1
             print("batch number: ",batches," time[s] = ",time.time()-batch_time)
+            break
             
         self.epoch_time = time.time() - start_time
-                
         self.mp.finalize_epoch_metrics(batches)
     
-    def fprop(self,type_):
+    def postprocess(self,type_):
+        #initialize to zero
         pred = []
+        y = []
+        w_raw = []
+        w = []
+        cuts = []
         for minibatch in self.kwargs[type_ +"_iterator"]:
             x = minibatch["data"]
             p = self.fns["score"](x)
             pred.extend(p)
-        return pred
-    
-    def postprocess(self,type_):
-        pred = self.fprop(type_)
-        self.mp.process_metrics(type_, pred, self.epoch_time)
-        self.mp.plot_roc_curve(type_, pred, self.kwargs["save_path"])
+            y.extend(minibatch["label"])
+            w_raw.extend(minibatch["weight"])
+            w.extend(minibatch["normweight"])
+            cuts.extend(minibatch["psr"])
+        
+        #convert to arrays:
+        pred=np.asarray(pred,dtype="float32")
+        y=np.asarray(y,dtype="int32")
+        w_raw=np.asarray(w_raw,dtype="float32")
+        w=np.asarray(w,dtype="float32")
+        cuts=np.asarray(cuts,dtype="int32")
+        
+        #call the metrics-processor
+        self.mp.process_metrics(type_, pred, y, w_raw, w, cuts, self.epoch_time)
+        self.mp.plot_roc_curve(type_, pred, y, w_raw, cuts, self.kwargs["save_path"])
 
 
 
