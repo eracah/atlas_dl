@@ -54,7 +54,7 @@ def make_new_file(dic, new_fpath):
     newf = h5py.File(new_fpath)
     newg = newf.create_group("all_events")
     for k,v in dic.iteritems():
-        newg[k] = v
+        newg.create_dataset(name=k, data=v, compression="gzip")
     newf.close()
 
 
@@ -80,6 +80,13 @@ def preproc_file(fpath, max_val_dict={"weight": None,"hist": None}):
     h5f.close()
     
     return {"weight": w_max_abs,"hist": x_max_abs}
+
+def preproc_file_hists(fpath, max_val_dict={"hist": None},histname="hist"):
+    fgroup, h5f = get_atlas_h5group(fpath)
+    hist_normalized, x_max_abs = preprocess(fgroup[histname][:], max_val_dict["hist"])
+    fgroup[histname][:] = hist_normalized
+    h5f.close()    
+    return {"hist": x_max_abs}
 
 
 
