@@ -1,0 +1,40 @@
+{
+  "language"        : "PYTHON",
+  "experiment-name" : "hep-improved",
+  "polling-time"    : 1,
+  "resources" : {
+    "frontend" : {
+      "scheduler"         : "local",
+      "max-concurrent"    : 1,
+      "max-finished-jobs" : 100
+    }
+  },
+  "tasks": {
+    "hep_classifier" : {
+      "type"       : "OBJECTIVE",
+      "likelihood" : "GAUSSIAN",
+      "main-file"  : "run_experiment.py",
+      "resources"  : ["frontend"]
+    }
+  },
+  "variables": {
+    "base_lr" : {
+      "type" : "INT",
+      "size" : 1,
+      "min"  : -5,
+      "max"  : -1
+    },
+    "weight_decay" : {
+      "type" : "INT",
+      "size" : 1,
+      "min"  : -5,
+      "max"  : 0
+    },
+    "leakiness" : {
+      "type" : "INT",
+      "size" : 1,
+      "min"  : -3,
+      "max"  : -1
+    }
+  }
+}

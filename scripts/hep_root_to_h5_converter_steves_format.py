@@ -8,8 +8,12 @@ import os
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-import matplotlib.mlab as mlab
-#%matplotlib inline
+import matplotlib.patches as mlines
+import matplotlib.font_manager as font_manager
+from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import AutoMinorLocator
+from matplotlib import gridspec
+from matplotlib.backends.backend_pdf import PdfPages
 import time
 from tqdm import tqdm
 import re
@@ -19,6 +23,21 @@ import re
 #import rootpy
 #import root_numpy as rnp
 import h5py as h5
+
+
+# # Plot Settings
+
+
+# Set the font dictionaries (for plot title and axis titles)
+title_font = {'size':'16', 'color':'black', 'weight':'normal',
+              'verticalalignment':'bottom'} # Bottom vertical alignment for more space
+axis_font = {'size':'14'}
+font_prop_title = font_manager.FontProperties(size=40)
+font_prop_axis = font_manager.FontProperties(size=30)
+font_prop_axis_labels = font_manager.FontProperties(size=40)
+font_prop_legend = font_manager.FontProperties(size=26)
+#plt.style.use('seaborn-talk')
+#plt.style.available
 
 
 # ## Useful functions
@@ -173,16 +192,19 @@ def load_data(filelists,
 def augment_data(xarr,roll_angle):
     #flip in x:
     if np.random.random_sample()>=0.5:
-        xarr=np.fliplr(xarr)
+        for c in range(xarr.shape[0]):
+            xarr[c,:,:]=np.fliplr(xarr[c,:,:])
     #flip in y:
     if np.random.random_sample()>=0.5:
-        xarr=np.flipud(xarr)
+        for c in range(xarr.shape[0]):
+            xarr[c,:,:]=np.flipud(xarr[c,:,:])
     #roll in x with period 2pi/8
     randroll=np.random.randint(0,8,size=1)[0]
     #determine granularity:
     rollunit=randroll*roll_angle
-    xarr=np.roll(xarr, shift=rollunit, axis=1)
-    
+    for c in range(xarr.shape[0]):
+        xarr[c,:,:]=np.roll(xarr[c,:,:], shift=rollunit, axis=1)
+    #return augmented array
     return xarr
     
     
@@ -379,9 +401,9 @@ bg_cfg_files=list(filenamedf[ (filenamedf['jz']>=jzmin) & (filenamedf['jz']<=jzm
 
 
 
-#load additional signal files:
-other_sig_cfg_files=list( filenamedf[ (filenamedf['mGlu']>0.) | (filenamedf['mNeu']>0.) ]['filename'])
-other_sig_cfg_files=[x for x in other_sig_cfg_files if x not in sig_cfg_files]
+##load additional signal files:
+#other_sig_cfg_files=list( filenamedf[ (filenamedf['mGlu']>0.) | (filenamedf['mNeu']>0.) ]['filename'])
+#other_sig_cfg_files=[x for x in other_sig_cfg_files if x not in sig_cfg_files]
 
 
 # ## Load data
@@ -419,11 +441,12 @@ sigdf.reset_index(drop=True,inplace=True)
 #parameters
 train_fraction=0.75
 validation_fraction=0.05
-#nbins=(224,224)
-nbins=(64,64)
-nsig_augment=1
+nbins=(224,224)
+#nbins=(64,64)
 total_files_per_jz=640000
 total_files_per_theory=640000
+#this will yield even class frequencies, because there are 9 jz's:
+nsig_augment=1
 
 
 # ## Shuffle Training data
@@ -561,9 +584,13 @@ hditer_train.shuffle(13)
 
 #validation
 hditer_validation=hep_data_iterator(valdf,nbins=nbins,even_frequencies=False,compute_max=False)
+#shuffle this one, so that I do not need to parse all validation files to find positive and negative examples
+hditer_validation.shuffle(13)
 
 #test
 hditer_test=hep_data_iterator(testdf,nbins=nbins,even_frequencies=False,compute_max=False)
+#shuffle this one, so that I do not need to parse all test files to find positive and negative examples
+hditer_test.shuffle(13)
 
 
 #the preprocessing for the validation iterator has to be taken from the training iterator
@@ -586,7 +613,7 @@ print "Sum Weight: ",hditer_train.df['weight'].sum()
 # ## Preprocess Data
 
 
-datadir="/global/cscratch1/sd/tkurth/atlas_dl/data_delphes_evan"
+datadir="/global/cscratch1/sd/tkurth/atlas_dl/data_delphes_new"
 numnodes=1024
 
 
@@ -628,7 +655,7 @@ for i in tqdm(range(0,numnodes)):
     xsg,ysg,wsg,psg,mgsg,mnsg,jzsg,eidsg = preprocess_data(sigtrain.iloc[ilow:iup],                                         hditer_train.eta_range,                                         hditer_train.phi_range,                                         hditer_train.eta_bins,                                         hditer_train.phi_bins)
     for c in range(3):
         xsg[:,c,:,:]/=hditer_train.max_abs[c]
-    
+
     #tile the arrays
     xsg=np.tile(xsg,(nsig_augment,1,1,1))
     ysg=np.tile(ysg,(nsig_augment))
@@ -640,8 +667,8 @@ for i in tqdm(range(0,numnodes)):
     eidsg=np.tile(eidsg,(nsig_augment))
     #augment the x-values
     for k in range(0,xsg.shape[0]):
-        xsg[k][0]=augment_data(xsg[k][0],int(np.round(hditer_train.phi_bins/8.)))
-    
+        xsg[k,:,:,:]=augment_data(xsg[k,:,:,:],int(np.round(hditer_train.phi_bins/8.)))
+   
     #stack them together
     x=np.concatenate([xbg,xsg])
     y=np.concatenate([ybg,ysg])
@@ -721,6 +748,85 @@ for idx,i in tqdm(enumerate(range(0,hditer_validation.num_examples,chunksize_val
     f['jz']=jz
     f['eid']=eid
     f.close()
+
+
+# # Test the dataset
+
+
+testfiles=[x for x in os.listdir(datadir) if x.endswith('.hdf5')]
+
+
+
+testresults=[]
+for fname in tqdm(testfiles):
+    f = h5.File(datadir+'/'+fname,'r')
+    data=f['data'].value
+    label=f['label'].value
+    normweight=f['normweight'].value
+    f.close()
+    
+    #scan filename for phase:
+    phase=fname.split("_")[1]
+    
+    #compute stats:
+    maxvals=np.max(data,axis=(2,3))
+    minvals=np.min(data,axis=(2,3))
+    normvals=np.linalg.norm(data,axis=(2,3))
+    
+    #compute density
+    density=np.sum(data>0,axis=(2,3))/float(np.prod(data.shape[2:4]))
+    
+    #iterate over batches:
+    for ind in range(data.shape[0]):
+        tmpdict={'filename':fname, 'batchid': ind, 'phase':phase}
+        
+        tmpdict['max']=maxvals[ind,:]
+        tmpdict['min']=minvals[ind,:]
+        tmpdict['norm']=normvals[ind,:]
+        tmpdict['label']=label[ind]
+        tmpdict['normweight']=normweight[ind]
+        tmpdict['density']=density[ind]
+        testresults.append(tmpdict)
+
+#store in dataframe
+testdf=pd.DataFrame(testresults)
+
+
+# ## Plot the result
+
+
+#plot the results
+nbins=100
+nrows=3
+numcols=3
+fig, axvec= plt.subplots(figsize=(20*numcols, 10*nrows), nrows=nrows, ncols=numcols)
+
+#use those colors
+colors=['crimson','dodgerblue','aquamarine']
+
+for row,typ in enumerate(['max','norm','density']):
+    for channel in range(3):
+        #get axis
+        ax=axvec[row][channel]
+        
+        #set properties
+        ax.set_title("Type: "+typ+" channel "+str(channel),fontproperties=font_prop_title)
+        for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+            label.set_fontproperties(font_prop_axis)
+            label.set_fontsize(32)
+        #ax.set_xlabel('memory-mode',fontproperties=font_prop_axis)
+        ax.set_ylabel('counts',fontproperties=font_prop_axis)
+        
+        #create histogram
+        for idx,phase in enumerate(testdf.phase.unique()):
+            #project data
+            data=testdf[typ].ix[ testdf["phase"]==phase ].apply(lambda x: x[channel])
+            Y, X = np.histogram(data, nbins, density=True)
+            X=[ (X[i]+X[i+1])*0.5 for i in range(len(X)-1)]
+            width=(X[1]-X[0])/3.
+            ax.bar(X,Y,width=width, color=colors[idx])
+        
+plt.tight_layout()
 
 
 
