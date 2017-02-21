@@ -9,6 +9,7 @@ from lasagne.regularization import regularize_network_params, l2
 from lasagne.updates import *
 from lasagne.init import *
 from lasagne.nonlinearities import rectify as relu
+from lasagne.nonlinearities import LeakyRectify as lrelu
 from lasagne.nonlinearities import *
 import theano
 from theano import tensor as T
@@ -16,6 +17,7 @@ import sys
 import numpy as np
 #enable importing of notebooks
 import inspect
+import pickle
 
 
 
@@ -66,21 +68,27 @@ def build_network(args, network):
     val_fn = theano.function([X, Y, W], test_loss)
     acc_fn = theano.function([X, Y, W], test_acc)
     out_fn = theano.function([X], test_prediction)
-    score_fn = theano.function([X], test_prediction[:,1])
+    score_fn = theano.function([X], test_prediction[:,1].T)
     return {"net":network}, {'tr': train_fn, 
                             'val': val_fn,
+                             'test': val_fn,
                             'acc': acc_fn,
                             'out': out_fn, "score":score_fn}
 
 def build_layers(args):
     
-    conv_kwargs = dict(num_filters=args['num_filters'], filter_size=3, pad=1, nonlinearity=relu, W=HeNormal(gain="relu"))
+    custom_rectify = lrelu(args['leakiness'])
+    
+    conv_kwargs = dict(num_filters=args['num_filters'], filter_size=3, pad=1, nonlinearity=custom_rectify, W=HeNormal(gain="relu"))
     network = InputLayer(shape=args['input_shape'])
     for lay in range(args['num_layers']):
-        network = batch_norm(Conv2DLayer(network, **conv_kwargs))
+        if not args["batch_norm"]:
+            network = Conv2DLayer(network, **conv_kwargs)
+            network = dropout(network, p=args['dropout_p'])
+        else:
+            network = batch_norm(Conv2DLayer(network, **conv_kwargs))
         network = MaxPool2DLayer(network, pool_size=(2,2),stride=2)
-    network = dropout(network, p=args['dropout_p'])
-    network = DenseLayer(network,num_units=args['num_fc_units'], nonlinearity=relu) 
+    network = DenseLayer(network,num_units=args['num_fc_units'], nonlinearity=custom_rectify) 
     network = dropout(network, p=args['dropout_p'])
     network = DenseLayer(network, num_units=2, nonlinearity=softmax)
     
@@ -89,37 +97,41 @@ def build_layers(args):
             args["logger"].info(str(layer) + str(layer.output_shape))
     print count_params(layer)
     
+    if args["load_path"] is not "None":
+        network = load_weights(args["load_path"],network)
+
+    
     return network
 
 
-    
+def load_weights(pickle_file_path, network):
+    '''grabs weights from an npz file'''
+    old_params = pickle.load(open(pickle_file_path, 'r'))
 
-# def auc(pred,gt):
-    
- 
-
-
+    set_all_param_values(network, old_params)
+    return network
 
 
 
 if __name__ == "__main__":
- inp_d = {'input_shape': tuple([None] + [1, 64, 64]), 
-                   'learning_rate': 0.01, 
-                   'dropout_p': 0.5, 
-                   'weight_decay': 0, #0.0001, 
-                   'num_filters': 10, 
-                   'num_fc_units': 32,
-                   'num_layers': 3,
-                   'momentum': 0.9,
-                   'num_epochs': 20000,
-                   'batch_size': 128,
-                   "save_path": "None",
-                   "num_events": 200,
-                   "sig_eff_at": 0.9996,
-                   "test":False, "seed": 7,
-                   "mode":"classif",
-                   "ae":False}
- net, fns = build_network(inp_d, build_layers(inp_d))
+    inp_d = {'input_shape': tuple([None] + [3, 224, 224]), 
+                      'learning_rate': 0.01, 
+                      'dropout_p': 0.5,
+                      'leakiness': 0.1,
+                      'weight_decay': 0, #0.0001, 
+                      'num_filters': 128, 
+                      'num_fc_units': 1024,
+                      'num_layers': 4,
+                      'momentum': 0.9,
+                      'batch_norm': False,
+                      'num_epochs': 20000,
+                      'batch_size': 128,
+                      "save_path": "None",
+                      "num_events": 200,
+                      "sig_eff_at": 0.9996,
+                      "test":False, "seed": 7,
+                      "mode":"classif"}
+    net, fns = build_network(inp_d, build_layers(inp_d))
 
 
 
