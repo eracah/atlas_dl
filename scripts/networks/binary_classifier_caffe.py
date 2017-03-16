@@ -87,9 +87,13 @@ def build_layers(args):
             network = dropout(network, p=args['dropout_p'])
         else:
             network = batch_norm(Conv2DLayer(network, **conv_kwargs))
-        network = MaxPool2DLayer(network, pool_size=(2,2),stride=2)
-    network = DenseLayer(network,num_units=args['num_fc_units'], nonlinearity=custom_rectify) 
-    network = dropout(network, p=args['dropout_p'])
+        #last pooler is global
+        if lay==args['num_layers']-1:
+            network = GlobalPoolLayer(network)
+        else:
+            network = MaxPool2DLayer(network, pool_size=(2,2),stride=2)
+    #network = DenseLayer(network,num_units=args['num_fc_units'], nonlinearity=custom_rectify) 
+    #network = dropout(network, p=args['dropout_p'])
     network = DenseLayer(network, num_units=2, nonlinearity=softmax)
     
     for layer in get_all_layers(network):

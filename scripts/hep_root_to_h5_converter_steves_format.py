@@ -377,7 +377,8 @@ class hep_data_iterator:
 # ## Curate file list
 
 
-directory='/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/delphes_002_2017_01_11'
+#directory='/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/delphes_002_2017_01_11'
+directory='/global/cscratch1/sd/wbhimji/delphes_005_2017_03_06_NoPU'
 filelists=[parse_filename(x,directory) for x in os.listdir(directory) if x.endswith('h5')]
 filenamedf=pd.DataFrame(filelists)
 
@@ -401,9 +402,9 @@ bg_cfg_files=list(filenamedf[ (filenamedf['jz']>=jzmin) & (filenamedf['jz']<=jzm
 
 
 
-##load additional signal files:
-#other_sig_cfg_files=list( filenamedf[ (filenamedf['mGlu']>0.) | (filenamedf['mNeu']>0.) ]['filename'])
-#other_sig_cfg_files=[x for x in other_sig_cfg_files if x not in sig_cfg_files]
+#load additional signal files:
+other_sig_cfg_files=list( filenamedf[ (filenamedf['mGlu']>0.) | (filenamedf['mNeu']>0.) ]['filename'])
+other_sig_cfg_files=[x for x in other_sig_cfg_files if x not in sig_cfg_files]
 
 
 # ## Load data
@@ -427,12 +428,12 @@ sigdf.reset_index(drop=True,inplace=True)
 
 
 
-##load additional signal data
-#print("Loading remaining signal data.")
-#othersigdf=load_data(other_sig_cfg_files)
-##sort
-#othersigdf.sort_values(by=['filename','eventid'],inplace=True)
-#othersigdf.reset_index(drop=True,inplace=True)
+#load additional signal data
+print("Loading remaining signal data.")
+othersigdf=load_data(other_sig_cfg_files)
+#sort
+othersigdf.sort_values(by=['filename','eventid'],inplace=True)
+othersigdf.reset_index(drop=True,inplace=True)
 
 
 # ## Parameters
