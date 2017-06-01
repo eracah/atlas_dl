@@ -11,8 +11,6 @@ from scripts.plotting.curve_plotter import plot_roc_curve, plot_learn_curve
 from scripts.util import makedir_if_not_there, iterate_minibatches, save_weights
 from scripts.metrics.metrics_processor import MetricsProcessor
 from scripts.printing.print_utils import *
-from scripts.plotting.plot_images import *
-
 import time
 from lasagne.layers import *
 import numpy as np
@@ -37,9 +35,8 @@ class TrainVal(object):
         print_results(self.kwargs, self.epoch, self.mp.metrics)
     
     def iterator(self,type_):
-        return self.kwargs[type_ +"_iterator"].iterate()
-    
-   
+        for item in self.kwargs[type_ +"_iterator"]:
+            yield item
     
     def train_one_epoch(self):
         self._do_one_epoch(type_="tr")
@@ -50,7 +47,7 @@ class TrainVal(object):
         self.epoch += 1
         
     def _do_one_epoch(self, type_="tr"):
-        print "beginning epoch %i %s" % (self.epoch, type_)
+        print("beginning epoch %i %s" % (self.epoch, type_))
         self.do_learn_loop(type_)
         self.postprocess(type_)
     
@@ -58,7 +55,7 @@ class TrainVal(object):
                 
         start_time = time.time()
         batches = 0
-        for minibatch in self.iterator(type_):            
+        for minibatch in self.iterator(type_):
             x,y,w = [minibatch[k] for k in ["hist", "y", "normalized_weight"]]
             loss = self.fns[type_](x,y,w)
             acc = self.fns["acc"](x,y,w)
@@ -78,9 +75,10 @@ class TrainVal(object):
     
     def postprocess(self,type_):
         pred = self.fprop(type_)
-        print "data out"
-        np.save(self.kwargs["save_path"]+"/pred", pred)
         self.mp.process_metrics(type_, pred, self.epoch_time)
         self.mp.plot_roc_curve(type_, pred, self.kwargs["save_path"])
+
+
+
 
 

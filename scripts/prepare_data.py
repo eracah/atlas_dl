@@ -198,6 +198,16 @@ def get_calo_image(tree, xkey='clusEta', ykey='clusPhi', wkey='clusE',
     hist_list = map(hist2d, tree[xkey], tree[ykey], tree[wkey])
     return np.concatenate(hist_list)
 
+def get_track_image(tree, xkey='trackEta', ykey='trackPhi',
+                   bins=100, xlim=[-2.5, 2.5], ylim=[-3.15, 3.15]):
+    """Convert the numpy structure with calo clusters into 2D calo histograms"""
+    # Bin the data and reshape so we can concatenate along first axis into a 3D array.
+    def hist2d(x, y):
+        return (np.histogram2d(x, y, bins=bins, range=[xlim, ylim])[0]
+                .reshape([1, bins, bins]))
+    hist_list = map(hist2d, tree[xkey], tree[ykey])
+    return np.concatenate(hist_list)
+
 def merge_results(dicts):
     """Merge a list of dictionaries with numpy arrays"""
     dicts = filter(None, dicts)
@@ -254,7 +264,7 @@ def write_hdf5(filename, outputs):
         # Create one big h5f group
         g = hf.create_group('all_events')
         for key, data in outputs.iteritems():
-            if key in ["hist", "passSR4J", "passSR5J", "passSR", "weight"]:
+            if key in ["hist", "histEM", "histtrack", "passSR4J", "passSR5J", "passSR", "weight"]:
                 g.create_dataset(key, data=data)
         # Loop over events to write
         num_entries = outputs.values()[0].shape[0]
@@ -305,6 +315,8 @@ def main():
 
     # Get the 2D histogram
     data['hist'] = get_calo_image(tree, bins=args.bins)
+    data['histEM'] = get_calo_image(tree, xkey='clusEta', ykey='clusPhi', wkey='clusEM', bins=args.bins)
+    data['histtrack'] = get_track_image(tree, bins=args.bins)
 
     # Get sample metadata
     if args.input_type == 'xaod':
@@ -325,7 +337,7 @@ def main():
 
     # Dictionary of output data
     outputs = {}
-    output_keys = ['hist', 'passSR4J', 'passSR5J', 'passSR', 'weight']
+    output_keys = ['hist', 'histEM', 'histtrack', 'passSR4J', 'passSR5J', 'passSR', 'weight']
 
     # Addition optional outputs
     if args.write_clus:
