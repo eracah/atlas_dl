@@ -15,6 +15,7 @@ from scripts.util import create_run_dir, get_logger, dump_hyperparams
 default_args = {'input_shape': tuple([None] + [1, 64, 64]), 
                       'learning_rate': 0.00001, 
                       'dropout_p': 0.0, 
+#                      'leakiness': 0.1,
                       'weight_decay': 0.0,
                       'num_filters': 128, 
                       'num_fc_units': 512,
@@ -34,6 +35,7 @@ default_args = {'input_shape': tuple([None] + [1, 64, 64]),
                       "tr_file":"/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/evan_curated/train.h5",
                       "val_file": "/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/evan_curated/val.h5",
                       "test_file": "/project/projectdirs/dasrepo/atlas_rpv_susy/hdf5/evan_curated/test.h5",
+#                      "batch_norm": False
                       "no_batch_norm": False
                    }
 
@@ -91,8 +93,9 @@ def setup_configs():
 
 def setup_iterators(kwargs):
     loader_kwargs = dict(groupname="all_events",
-                         batch_size=kwargs["batch_size"], 
+                         batch_size=kwargs["batch_size"],
                          keys=["hist", "weight", "normalized_weight", "y"])
+#                         keys=["hist", "histEM", "histtrack", "weight", "normalized_weight", "y"])
     kwargs["loader_kwargs"] = loader_kwargs
     
     if not kwargs["test"]:

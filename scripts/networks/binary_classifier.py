@@ -104,8 +104,8 @@ def build_layers(args):
 def load_weights(pickle_file_path, network):
     '''grabs weights from an npz file'''
     old_params = pickle.load(open(pickle_file_path, 'r'))
-
-    set_all_param_values(network, old_params)
+    old_params_float32 = [ x.astype(np.float32,copy=False) for x in old_params ]
+    set_all_param_values(network, old_params_float32)
     return network   
 
 # def auc(pred,gt):

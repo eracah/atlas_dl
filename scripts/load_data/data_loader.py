@@ -81,6 +81,10 @@ class DataIterator(object):
                 excerpt = slice(start_idx, start_idx + self.batch_size)
             d={k:hgroup[k][excerpt] for k in self.keys}
             if "hist" in d:
+#                if ("histEM" in d) and ("histtrack" in d):
+#                    d["hist"] = np.stack((d["hist"],d["histEM"],d["histtrack"]), axis=1).astype("float32")
+#                if len(d["hist"].shape) == 3:
+#                else:
                 d["hist"] = np.expand_dims(d["hist"], axis=1).astype("float32")
             if "y" in d:
                 d["y"] = d["y"].astype("int32")
