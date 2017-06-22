@@ -31,41 +31,35 @@ if __name__ == '__main__':
     data = h5py.File(args.train_data)
     images = np.expand_dims(data['all_events']['hist'][:args.nb_events], -1)
     labels = data['all_events']['y'][:args.nb_events]
-#    weights = data['all_events']['weight'][:args.nb_events]
-#    weights = np.log(np.log(weights))
-    #print labels.mean()
+    weights = data['all_events']['weight'][:args.nb_events]
+#    weights = np.log(weights+1)                                                                                                                                                     
+    weights = weights**0.1                                                                                                                                                       
 
     val = h5py.File(args.val_data)
-    images_val = np.expand_dims(val['all_events']['hist'][:args.nb_events], -1)
-    labels_val = val['all_events']['y'][:args.nb_events]
-    weights_val = val['all_events']['weight'][:args.nb_events]
-    #print labels_val.mean()
+    images_val = np.expand_dims(val['all_events']['hist'][:], -1)
+    labels_val = val['all_events']['y'][:]
+    weights_val = val['all_events']['weight'][:]                                                                                                                                                       
 
-    from keras.layers import (Input, Conv2D, LeakyReLU, 
+    from keras.layers import (Input, Conv2D, LeakyReLU,
         BatchNormalization, MaxPooling2D, Dropout, Dense, Flatten)
 
     x = Input(shape=(64, 64, 1))
     h = Conv2D(64, kernel_size=(3, 3), activation='relu', strides=1, padding='same')(x)
-#    h = BatchNormalization()(h)
-#    h = MaxPooling2D(pool_size=(2, 2))(h)
-    h = Dropout(0.5)(h)
-
+#    h = BatchNormalization()(h)                                                                                                                                                     
+#    h = MaxPooling2D(pool_size=(2, 2))(h)                                                                                                                                           
+#    h = Dropout(0.5)(h)                  
     h = Conv2D(128, kernel_size=(3, 3), activation='relu', strides=2, padding='same')(h)
-#    h = BatchNormalization()(h)
-#    h = MaxPooling2D(pool_size=(2, 2))(h)
-    h = Dropout(0.5)(h)
-
+#    h = BatchNormalization()(h)                                                                                                                                                     
+#    h = MaxPooling2D(pool_size=(2, 2))(h)                                                                                                                                           
+#    h = Dropout(0.5)(h)                  
     h = Conv2D(256, kernel_size=(3, 3), activation='relu', strides=1, padding='same')(h)
-#    h = BatchNormalization()(h)
+#    h = BatchNormalization()(h)                                                                                                                                                     
 #    h = MaxPooling2D(pool_size=(2, 2))(h)
-
     h = Conv2D(256, kernel_size=(3, 3), activation='relu', strides=2, padding='same')(h)
-#    h = BatchNormalization()(h)
-
+#    h = BatchNormalization()(h)          
     h = Flatten()(h)
-    h = Dropout(0.5)(h)
     h = Dense(512, activation='relu')(h)
-    h = Dropout(0.5)(h)
+#    h = Dropout(0.5)(h)
     y = Dense(1, activation='sigmoid')(h)
 
     from keras.models import Model
@@ -81,16 +75,17 @@ if __name__ == '__main__':
     )
 
     from keras.callbacks import EarlyStopping, ModelCheckpoint
-    model_weights = 'model_weights.h5'
+    model_weights = 'model_weights_weighted05.h5'
     try:
         model.load_weights(model_weights)
+        print 'Weights loaded from ' + model_weights
     except IOError:
         print 'No pre-trained weights found'
 
     try:
         model.fit(images, labels,
                   batch_size=args.batch_size,
-#                  sample_weight=weights,
+                  sample_weight=weights,
                   epochs=args.nb_epochs,
                   verbose=1,
                   callbacks = [
@@ -104,9 +99,9 @@ if __name__ == '__main__':
         print 'Training finished early'
 
     model.load_weights(model_weights)
-    score = model.evaluate(images_val, labels_val, sample_weight=weights_val, verbose=1)
-    print 'Validation loss:', score[0]
-    print 'Validation accuracy:', score[1]
-
-
+    yhat = model.predict(images_val, verbose=1, batch_size=args.batch_size)
+   # score = model.evaluate(images_val, labels_val, sample_weight=weights_val, verbose=1)
+   # print 'Validation loss:', score[0]
+   # print 'Validation accuracy:', score[1]
+    np.save('prediction_nn_weighted05.npy', yhat)
 
