@@ -10,8 +10,11 @@ def get_parser():
     parser.add_argument('--nb-epochs', action='store', type=int, default=50,
                         help='Number of epochs to train for.')
 
-    parser.add_argument('--nb-events', action='store', type=int, default=1000,
+    parser.add_argument('--nb-train-events', action='store', type=int, default=1000,
                         help='Number of events to train on.')
+    
+    parser.add_argument('--nb-test-events', action='store', type=int, default=999999999,
+                        help='Number of events to test on.')
 
     parser.add_argument('--batch-size', action='store', type=int, default=256,
                         help='batch size per update')
@@ -37,19 +40,19 @@ if __name__ == '__main__':
 
     # -- load data:
     data = h5py.File(args.train_data)
-    images = np.expand_dims(data['all_events']['hist'][:args.nb_events], -1)
-    labels = data['all_events']['y'][:args.nb_events]
-    weights = data['all_events']['weight'][:args.nb_events]
+    images = np.expand_dims(data['all_events']['hist'][:args.nb_train_events], -1)
+    labels = data['all_events']['y'][:args.nb_train_events]
+    weights = data['all_events']['weight'][:args.nb_train_events]
     weights = np.log(weights+1)
     #weights = weights**0.1                                                                                                                                                       
     val = h5py.File(args.val_data)
-    images_val = np.expand_dims(val['all_events']['hist'][:args.nb_events], -1)
-    labels_val = val['all_events']['y'][:args.nb_events]
-    weights_val = val['all_events']['weight'][:args.nb_events]  
+    images_val = np.expand_dims(val['all_events']['hist'][:args.nb_test_events], -1)
+    labels_val = val['all_events']['y'][:args.nb_test_events]
+    weights_val = val['all_events']['weight'][:args.nb_test_events]  
 
     # -- output file names
-    model_weights = 'model_weights_weighted01_' + args.model + '.h5'
-    predictions_file = 'prediction_nn_weighted01_' + args.model + '.npy'
+    model_weights = 'model_weights_log_' + args.model + '.h5'
+    predictions_file = 'prediction_nn_log_' + args.model + '.npy'
 
     if args.model == 'BDT':
         from sklearn.ensemble import GradientBoostingClassifier
@@ -71,9 +74,9 @@ if __name__ == '__main__':
         from keras.callbacks import EarlyStopping, ModelCheckpoint
 
         if args.model == '3ch-CNN':
-            def add_channels(_images, _data):
-                layer_em = np.expand_dims(_data['all_events']['histEM'][:args.nb_events], -1)
-                layer_track = np.expand_dims(_data['all_events']['histtrack'][:args.nb_events], -1)
+            def add_channels(_images, _data, nb_events):
+                layer_em = np.expand_dims(_data['all_events']['histEM'][:nb_events], -1)
+                layer_track = np.expand_dims(_data['all_events']['histtrack'][:nb_events], -1)
                 layer_em = layer_em / layer_em.max()
                 layer_track = layer_track / layer_track.max()
                 return np.concatenate(
@@ -82,8 +85,8 @@ if __name__ == '__main__':
                     ), layer_track), axis=-1
                 )
 
-            images = add_channels(images, data)
-            images_val = add_channels(images_val, val)
+            images = add_channels(images, data, args.nb_train_events)
+            images_val = add_channels(images_val, val, args.nb_test_events)
 
         x = Input(shape=(images.shape[1], images.shape[2], images.shape[3]))
         h = Conv2D(64, kernel_size=(3, 3), activation='relu', strides=1, padding='same')(x)
