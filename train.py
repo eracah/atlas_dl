@@ -23,7 +23,7 @@ def get_parser():
                         help='path to HDF5 file to validate on')
 
     parser.add_argument('model', action='store', type=str,
-                        help='one of: "3DCNN", "CNN", "FCN", "BDT"')
+                        help='one of: "3ch-CNN", "CNN", "FCN", "BDT"')
 
     return parser
 
@@ -32,20 +32,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # -- check that model makes sense:
-    if args.model not in ['3DCNN', 'CNN', 'FCN', 'BDT']:
-        raise ValueError("The model type needs to be one of 'CNN', 'FCN', 'BDT'.")
+    if args.model not in ['3ch-CNN', 'CNN', 'FCN', 'BDT']:
+        raise ValueError("The model type needs to be one of '3ch-CNN', 'CNN', 'FCN', 'BDT'.")
 
     # -- load data:
     data = h5py.File(args.train_data)
     images = np.expand_dims(data['all_events']['hist'][:args.nb_events], -1)
     labels = data['all_events']['y'][:args.nb_events]
     weights = data['all_events']['weight'][:args.nb_events]
-#    weights = np.log(weights+1)
-    weights = weights**0.1                                                                                                                                                       
+    weights = np.log(weights+1)
+    #weights = weights**0.1                                                                                                                                                       
     val = h5py.File(args.val_data)
-    images_val = np.expand_dims(val['all_events']['hist'][:], -1)
-    labels_val = val['all_events']['y'][:]
-    weights_val = val['all_events']['weight'][:]  
+    images_val = np.expand_dims(val['all_events']['hist'][:args.nb_events], -1)
+    labels_val = val['all_events']['y'][:args.nb_events]
+    weights_val = val['all_events']['weight'][:args.nb_events]  
 
     # -- output file names
     model_weights = 'model_weights_weighted01_' + args.model + '.h5'
@@ -64,11 +64,26 @@ if __name__ == '__main__':
         yhat = clf.predict_proba(images_val.reshape(images_val.shape[0], -1))
         np.save(predictions_file, yhat)
 
-    elif args.model == 'CNN':
+    elif 'CNN' in args.model:
         from keras.layers import (Input, Conv2D, LeakyReLU,
             BatchNormalization, MaxPooling2D, Dropout, Dense, Flatten)
         from keras.models import Model
         from keras.callbacks import EarlyStopping, ModelCheckpoint
+
+        if args.model == '3ch-CNN':
+            def add_channels(_images, _data):
+                layer_em = np.expand_dims(_data['all_events']['histEM'][:args.nb_events], -1)
+                layer_track = np.expand_dims(_data['all_events']['histtrack'][:args.nb_events], -1)
+                layer_em = layer_em / layer_em.max()
+                layer_track = layer_track / layer_track.max()
+                return np.concatenate(
+                    (np.concatenate(
+                        (_images, layer_em), axis=-1
+                    ), layer_track), axis=-1
+                )
+
+            images = add_channels(images, data)
+            images_val = add_channels(images_val, val)
 
         x = Input(shape=(images.shape[1], images.shape[2], images.shape[3]))
         h = Conv2D(64, kernel_size=(3, 3), activation='relu', strides=1, padding='same')(x)
@@ -190,9 +205,81 @@ if __name__ == '__main__':
         # print 'Validation loss:', score[0]
         # print 'Validation accuracy:', score[1]
         np.save(predictions_file, yhat)
-
+'''
     elif args.model == '3DCNN':
-        raise NotImplementedError('BDT method not yet implemented')
+        from keras.layers import (Input, Conv3D, Dropout, ZeroPadding3D, BatchNormalization, 
+                          AveragePooling3D, Flatten, Dense)
+        from keras.layers.advanced_activations import LeakyReLU
+        from keras.models import Model
+        from keras.callbacks import EarlyStopping, ModelCheckpoint
 
+#        raise NotImplementedError('3DCNN method not yet implemented')
+        layer_em = np.expand_dims(data['all_events']['histEM'][:args.nb_events], -1)
+        layer_track = np.expand_dims(data['all_events']['histtrack'][:args.nb_events], -1)
+        images = np.concatenate(
+            (np.concatenate(
+                (images, layer_em), axis=-1
+            ), layer_track), axis=-1 
+        )
+        x = Input(shape=images.shape)
+        h = Conv3D(64, (3, 3, 3), padding='same')(x)
+        h = LeakyReLU()(h)
+        h = Dropout(0.2)(h)
+        
+        h = ZeroPadding3D((2, 2, 2))(h)
+        h = Conv3D(128, (3, 3, 3), padding='valid')(h)
+        h = LeakyReLU()(h)
+        h = BatchNormalization()(h)
+        h = Dropout(0.2)(h)
+        
+        h = ZeroPadding3D((2, 2, 2))(h)
+        h = Conv3D(256, (3, 3, 3), padding='valid')(h)
+        h = LeakyReLU()(h)
+        h = BatchNormalization()(h)
+        h = Dropout(0.2)(h)
+        
+        h = ZeroPadding3D((1, 1, 1))(h)
+        h = Conv3D(512, (3, 3, 3), padding='valid')(h)
+        h = LeakyReLU()(h)
+        h = BatchNormalization()(h)
+        h = Dropout(0.2)(h)
+        h = AveragePooling3D((2, 2, 2))(h)
+        h = Flatten()(h)
+        y = Dense(1, activation='sigmoid')(h)
+        
+        model = Model(x, y)
 
+        model.summary()
+        model.compile(
+            optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        try:
+            model.load_weights(model_weights)
+            print 'Weights loaded from ' + model_weights
+        except IOError:
+            print 'No pre-trained weights found'
+        try:
+            model.fit(images, labels,
+                      batch_size=args.batch_size,
+                      sample_weight=weights,
+                      epochs=args.nb_epochs,
+                      verbose=1,
+                      callbacks = [
+                        EarlyStopping(verbose=True, patience=20, monitor='val_loss'),
+                        ModelCheckpoint(model_weights,
+                            monitor='val_loss', verbose=True, save_best_only=True)
+                      ],
+                      validation_data=(images_val, labels_val, weights_val)
+            )
+        except KeyboardInterrupt:
+            print 'Training finished early'
 
+        model.load_weights(model_weights)
+        yhat = model.predict(images_val, verbose=1, batch_size=args.batch_size)
+        # score = model.evaluate(images_val, labels_val, sample_weight=weights_val, verbose=1)
+        # print 'Validation loss:', score[0]
+        # print 'Validation accuracy:', score[1]
+        np.save(predictions_file, yhat)
+'''
