@@ -9,9 +9,6 @@ import h5py as h5
 #numpy
 import numpy as np
 
-#sklearn
-from sklearn import metrics
-
 #tensorflow
 import tensorflow as tf
 import tensorflow.contrib.keras as tfk
