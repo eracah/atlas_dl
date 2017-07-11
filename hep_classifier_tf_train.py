@@ -29,7 +29,7 @@ import scripts.networks.binary_classifier_tf as bc
 # # Useful Functions
 
 
-def train_loop(sess,args,trainset,validationset):
+def train_loop(sess,train_step,args,trainset,validationset):
     
     #counter stuff
     trainset.reset()
@@ -37,7 +37,7 @@ def train_loop(sess,args,trainset,validationset):
     
     #restore weights belonging to graph
     epochs_completed = 0
-    if not restart:
+    if not args['restart']:
         last_model = tf.train.latest_checkpoint(modelpath)
         print("Restoring model %s.",last_model)
         model_saver.restore(sess,last_model)
@@ -63,16 +63,25 @@ def train_loop(sess,args,trainset,validationset):
         
         #update weights
         start_time = time.time()
-        _, summary, tmp_loss, pred = sess.run([train_step, train_summary, loss_fn, pred_fn],
-                                              feed_dict={variables['images_']: images, 
-                                              variables['labels_']: labels, 
-                                              variables['weights_']: normweights, 
-                                              variables['keep_prob_']: args['dropout_p']})
+        if args['create_summary']:
+            _, summary, tmp_loss, pred = sess.run([train_step, train_summary, loss_fn, pred_fn],
+                                                  feed_dict={variables['images_']: images, 
+                                                  variables['labels_']: labels, 
+                                                  variables['weights_']: normweights, 
+                                                  variables['keep_prob_']: args['dropout_p']})
+        else:
+            _, tmp_loss, pred = sess.run([train_step, loss_fn, pred_fn],
+                                        feed_dict={variables['images_']: images, 
+                                        variables['labels_']: labels, 
+                                        variables['weights_']: normweights, 
+                                        variables['keep_prob_']: args['dropout_p']})
         end_time = time.time()
         train_time += end_time-start_time
         
         #add to summary
-        train_writer.add_summary(summary, total_batches)
+        if args['create_summary']:
+            with tf.device(args['device']):
+                train_writer.add_summary(summary, total_batches)
         
         #increment train loss and batch number
         train_loss += tmp_loss
@@ -113,11 +122,18 @@ def train_loop(sess,args,trainset,validationset):
                 weights[:] = 1.
                 
                 #compute loss
-                summary, tmp_loss=sess.run([validation_summary,loss_fn],
-                                            feed_dict={variables['images_']: images, 
-                                                        variables['labels_']: labels, 
-                                                        variables['weights_']: normweights, 
-                                                        variables['keep_prob_']: 1.0})
+                if args['create_summary']:
+                    summary, tmp_loss=sess.run([validation_summary,loss_fn],
+                                                feed_dict={variables['images_']: images, 
+                                                            variables['labels_']: labels, 
+                                                            variables['weights_']: normweights, 
+                                                            variables['keep_prob_']: 1.0})
+                else:
+                    tmp_loss=sess.run([loss_fn],
+                                    feed_dict={variables['images_']: images, 
+                                                variables['labels_']: labels, 
+                                                variables['weights_']: normweights, 
+                                                variables['keep_prob_']: 1.0})
                 
                 #add loss
                 validation_loss += tmp_loss
@@ -235,6 +251,7 @@ print("Using ",num_inter_threads,"-way task parallelism with ",num_intra_threads
 
 
 #decide who will be worker and who will be parameters server
+args['create_summary']=True
 if args['num_tasks'] > 1:
     args['cluster'], args['server'], args['task_index'], args['num_tasks'], args['node_type'] = sc.setup_slurm_cluster(num_ps=1)
     if args['node_type'] == "ps":
@@ -290,7 +307,7 @@ if True and (args['node_type'] == 'worker'):
     #paths
     args['inputpath'] = '/global/cscratch1/sd/wbhimji/delphes_combined_64imageNoPU'
     args['logpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_logs/hep_classifier_log'
-    args['modelpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_models/hep_classifier_models'
+    args['modelpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_models/hep_classifier_models_distributed'
     #training files
     trainfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if x.startswith('train_') and x.endswith('.h5')]
     trainset = bc.DataSetEvan(trainfiles,args['num_tasks'],args['task_index'],split_filelist=False,split_file=True)
@@ -323,42 +340,55 @@ if (args['node_type'] == 'worker'):
         opt = tf.train.AdamOptimizer(args['learning_rate'])
         if args['mode'] == "sync":
             #if syncm we make a data structure that will aggregate the gradients form all tasks (one task per node in thsi case)
-            opt = tf.train.SyncReplicasOptimizer(opt, replicas_to_aggregate=num_tasks, total_num_replicas=num_tasks)
-        train_op = opt.minimize(loss_fn, global_step=global_step)
+            opt = tf.train.SyncReplicasOptimizer(opt, replicas_to_aggregate=args['num_tasks'], total_num_replicas=args['num_tasks'])
+        train_step = opt.minimize(loss_fn, global_step=global_step)
         
         if args["mode"] == "sync":
             hooks.append(opt.make_session_run_hook(is_chief=args['is_chief']))
+            
+        #creating summary
+        if args['create_summary']:
+            var_summary = []
+            for item in variables:
+                var_summary.append(tf.summary.histogram(item,variables[item]))
+            summary_loss = tf.summary.scalar("loss",loss_fn)
+            summary_accuracy = tf.summary.scalar("accuracy",accuracy_fn)
+            train_summary = tf.summary.merge([summary_loss]+var_summary)
+            validation_summary = tf.summary.merge([summary_loss])
+            
+        # Add an op to initialize the variables.
+        init_global_op = tf.global_variables_initializer()
+        init_local_op = tf.local_variables_initializer()
+        
+        #saver class:
+        model_saver = tf.train.Saver()
         
     
     print("Start training")
     with tf.train.MonitoredTrainingSession(config=sess_config, 
-                                           is_chief=args["is_chief"], 
-                                           master=server.target,
+                                           is_chief=args["is_chief"],
+                                           master=args['server'].target,
                                            checkpoint_dir=args['modelpath'],
                                            hooks=hooks) as sess:
     
         #create summaries
-        var_summary = []
-        for item in variables:
-            var_summary.append(tf.summary.histogram(item,variables[item]))
-        summary_loss = tf.summary.scalar("loss",loss_fn)
-        summary_accuracy = tf.summary.scalar("accuracy",accuracy_fn)
-        train_summary = tf.summary.merge([summary_loss]+var_summary)
-        validation_summary = tf.summary.merge([summary_loss])
-        train_writer = tf.summary.FileWriter(logpath, sess.graph)
-        
-        # Add an op to initialize the variables.
-        init_global_op = tf.global_variables_initializer()
-        init_local_op = tf.local_variables_initializer()
-    
-        #saver class:
-        model_saver = tf.train.Saver()
+        if args['create_summary']:
+            with tf.device(args['device']):
+                train_writer = tf.summary.FileWriter(args['logpath'], sess.graph)
+        #        var_summary = []
+        #        for item in variables:
+        #            var_summary.append(tf.summary.histogram(item,variables[item]))
+        #        summary_loss = tf.summary.scalar("loss",loss_fn)
+        #        summary_accuracy = tf.summary.scalar("accuracy",accuracy_fn)
+        #        train_summary = tf.summary.merge([summary_loss]+var_summary)
+        #        validation_summary = tf.summary.merge([summary_loss])
+        #        train_writer = tf.summary.FileWriter(args['logpath'], sess.graph)
     
         #initialize variables
         sess.run([init_global_op, init_local_op])
     
         #do the training loop
-        train_loop(sess,args,trainset,validationset)
+        train_loop(sess,train_step,args,trainset,validationset)
 
 
 
