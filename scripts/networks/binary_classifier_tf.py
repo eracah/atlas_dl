@@ -122,10 +122,22 @@ class DataSetEvan(object):
         #only load a new file if there are more than one file in the list:
         if self._num_files > 1 or not self._initialized:
             with h5.File(self._filelist[self._file_index],'r') as f:
-                self._images = f['all_events/hist'].value
-                self._labels = f['all_events/y'].value
-                self._normweights = f['all_events/normalized_weight'].value
-                self._weights = f['all_events/weight'].value
+                #determine total array size:
+                numentries=f['all_events/hist'].shape[0]
+                
+                if self._split_file:
+                    blocksize = int(np.ceil(numentries/float(self._num_tasks)))
+                    start = self._taskid*blocksize
+                    end = (self._taskid+1)*blocksize
+                else:
+                    start = 0
+                    end = numentries
+                
+                #load the chunk which is needed
+                self._images = f['all_events/hist'][start:end]
+                self._labels = f['all_events/y'][start:end]
+                self._normweights = f['all_events/normalized_weight'][start:end]
+                self._weights = f['all_events/weight'][start:end]
                 f.close()
                 
             #sanity checks
@@ -155,13 +167,26 @@ class DataSetEvan(object):
         self._weights = self._weights[perm]
         
     
-    def __init__(self, filelist):
+    def __init__(self, filelist,num_tasks=1,taskid=0,split_filelist=False,split_file=False):
         """Construct DataSet"""
+        #multinode stuff
+        self._num_tasks = num_tasks
+        self._taskid = taskid
+        self._split_filelist = split_filelist
+        self._split_file = split_file
+        
+        #split filelist?
         self._num_files = len(filelist)
+        start = 0
+        end = self._num_files
+        if split_filelist:
+            self._num_files = int(np.floor(len(filelist)/float(self._num_tasks)))
+            start = self._taskid * self._num_files
+            end = start + self._num_files
         
         assert self._num_files > 0, ('filelist is empty')
         
-        self._filelist = filelist
+        self._filelist = filelist[start:end]
         self._initialized = False
         self.reset()
         self.load_next_file()

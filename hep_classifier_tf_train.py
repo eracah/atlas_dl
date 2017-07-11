@@ -18,163 +18,18 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.keras as tfk
 
+#slurm helpers
+sys.path.append("/global/homes/t/tkurth/python_custom_modules")
+import slurm_tf_helper.setup_clusters as sc
+
 #housekeeping
 import scripts.networks.binary_classifier_tf as bc
 
 
-# # Network Parameters
+# # Useful Functions
 
 
-args={'input_shape': [None, 1, 64, 64], 
-                      'arch' : 'hsw',
-                      'display_interval': 10,
-                      'save_interval': 1,
-                      'learning_rate': 1.e-5, 
-                      'dropout_p': 0.5, 
-                      'weight_decay': 0, #0.0001, 
-                      'num_fc_units': 512,
-                      'num_layers': 3,
-                      'momentum': 0.9,
-                      'num_epochs': 200,
-                      'train_batch_size': 512, #480
-                      'validation_batch_size': 320, #480
-                      'batch_norm': True,
-                      'time': True,
-                      'conv_params': dict(num_filters=128, 
-                                       filter_size=3, padding='SAME', 
-                                       activation=tf.nn.relu, 
-                                       initializer=tfk.initializers.he_normal())
-                     }
-
-
-# ## Build Network and Functions
-
-
-print("Building model")
-variables, network = bc.build_cnn_model(args)
-pred_fn, loss_fn, accuracy_fn, auc_fn = bc.build_functions(variables, network)
-tf.add_to_collection('pred_fn', pred_fn)
-tf.add_to_collection('loss_fn', loss_fn)
-
-
-
-print variables
-print network
-
-
-# ## Setup Iterators
-
-# ### My Files
-
-
-if False:
-    print("Setting up iterators")
-    #paths
-    inputpath = '/global/cscratch1/sd/tkurth/atlas_dl/data_delphes_final_64x64'
-    logpath = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_logs/hep_classifier_log'
-    modelpath = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_models/hep_classifier_models'
-    #training files
-    trainfiles = [inputpath+'/'+x for x in os.listdir(inputpath) if x.startswith('hep_train') and x.endswith('.hdf5')]
-    trainset=bc.DataSet(trainfiles[0:20])
-    #validation files
-    validationfiles = [inputpath+'/'+x for x in os.listdir(inputpath) if x.startswith('hep_valid') and x.endswith('.hdf5')]
-    validationset = bc.DataSet(validationfiles[0:20])
-
-
-# ### Evans Files
-
-
-if True:
-    print("Setting up iterators")
-    #paths
-    inputpath = '/global/cscratch1/sd/wbhimji/delphes_combined_64imageNoPU'
-    logpath = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_logs/hep_classifier_log'
-    modelpath = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_models/hep_classifier_models'
-    #training files
-    trainfiles = [inputpath+'/'+x for x in os.listdir(inputpath) if x.startswith('train_') and x.endswith('.h5')]
-    trainset=bc.DataSetEvan(trainfiles)
-    #validation files
-    validationfiles = [inputpath+'/'+x for x in os.listdir(inputpath) if x.startswith('val_') and x.endswith('.h5')]
-    validationset = bc.DataSetEvan(validationfiles)
-
-
-# # Train Model
-
-
-arch=args['arch']
-
-#common stuff
-os.environ["KMP_BLOCKTIME"] = "1"
-os.environ["KMP_SETTINGS"] = "1"
-os.environ["KMP_AFFINITY"]= "granularity=fine,verbose,compact,1,0"
-
-#arch-specific stuff
-if arch=='hsw':
-    num_inter_threads = 2
-    num_intra_threads = 16
-elif arch=='knl':
-    num_inter_threads = 2
-    num_intra_threads = 66
-elif arch=='k80':
-    num_inter_threads = -1
-    num_intra_threads = -1
-else:
-    raise ValueError('Please specify a valid architecture with arch (allowed values: hsw, knl.)')
-
-#set the rest
-os.environ['OMP_NUM_THREADS'] = str(num_intra_threads)
-sess_config=tf.ConfigProto(inter_op_parallelism_threads=num_inter_threads,
-                           intra_op_parallelism_threads=num_intra_threads,
-                           allow_soft_placement=True, 
-                           log_device_placement=True)
-
-print("Using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
-
-
-
-restart=False
-#determining which model to load:
-metafilelist = [modelpath+'/'+x for x in os.listdir(modelpath) if x.endswith('.meta')]
-if not metafilelist:
-    restart=True
-#metafilelist.sort()
-#metafile = metafilelist[-1]
-#checkpoint = metafile.replace(".meta","")
-#print metafile
-#restart from scratch or restore?
-
-
-
-#initialize session
-print("Start training")
-with tf.Session(config=sess_config) as sess:
-
-    #train on training loss
-    train_step = tf.train.AdamOptimizer(args['learning_rate']).minimize(loss_fn)
-
-    #create summaries
-    var_summary = []
-    for item in variables:
-        var_summary.append(tf.summary.histogram(item,variables[item]))
-        #if item.startswith('conv'):
-        #    #add additional image feature maps
-        #    for i in range(variables_dict.shape[])
-        #    tf.summary.image()
-    summary_loss = tf.summary.scalar("loss",loss_fn)
-    summary_accuracy = tf.summary.scalar("accuracy",accuracy_fn)
-    train_summary = tf.summary.merge([summary_loss]+var_summary)
-    validation_summary = tf.summary.merge([summary_loss])
-    train_writer = tf.summary.FileWriter(logpath, sess.graph)
-    
-    # Add an op to initialize the variables.
-    init_global_op = tf.global_variables_initializer()
-    init_local_op = tf.local_variables_initializer()
-    
-    #saver class:
-    model_saver = tf.train.Saver()        
-    
-    #initialize variables
-    sess.run([init_global_op, init_local_op])
+def train_loop(sess,args,trainset,validationset):
     
     #counter stuff
     trainset.reset()
@@ -196,7 +51,7 @@ with tf.Session(config=sess_config) as sess:
     train_time=0
     
     #do training
-    while epochs_completed < args['num_epochs']:
+    while (epochs_completed < args['num_epochs']) and not sess.should_stop():
         
         #increment total batch counter
         total_batches+=1
@@ -209,7 +64,7 @@ with tf.Session(config=sess_config) as sess:
         #update weights
         start_time = time.time()
         _, summary, tmp_loss, pred = sess.run([train_step, train_summary, loss_fn, pred_fn],
-                                           feed_dict={variables['images_']: images, 
+                                              feed_dict={variables['images_']: images, 
                                               variables['labels_']: labels, 
                                               variables['weights_']: normweights, 
                                               variables['keep_prob_']: args['dropout_p']})
@@ -311,8 +166,199 @@ with tf.Session(config=sess_config) as sess:
             
             # Save the variables to disk.
             if epochs_completed%args['save_interval']==0:
-                model_save_path = model_saver.save(sess, modelpath+'/hep_classifier_tfmodel_epoch_'+str(epochs_completed)+'.ckpt')
+                model_save_path = model_saver.save(sess, args['modelpath']+'/hep_classifier_tfmodel_epoch_'+str(epochs_completed)+'.ckpt')
                 print 'Model saved in file: %s'%model_save_path
+
+
+# # Global Parameters
+
+
+args={'input_shape': [None, 1, 64, 64], 
+                      'arch' : 'knl',
+                      'mode': "sync",
+                      'num_tasks': 3,
+                      'display_interval': 10,
+                      'save_interval': 1,
+                      'learning_rate': 1.e-5, 
+                      'dropout_p': 0.5, 
+                      'weight_decay': 0, #0.0001, 
+                      'num_fc_units': 512,
+                      'num_layers': 3,
+                      'momentum': 0.9,
+                      'num_epochs': 200,
+                      'train_batch_size': 512, #480
+                      'validation_batch_size': 320, #480
+                      'batch_norm': True,
+                      'time': True,
+                      'restart': False,
+                      'conv_params': dict(num_filters=128, 
+                                       filter_size=3, padding='SAME', 
+                                       activation=tf.nn.relu, 
+                                       initializer=tfk.initializers.he_normal())
+                     }
+
+
+# # On-Node Stuff
+
+
+#common stuff
+os.environ["KMP_BLOCKTIME"] = "1"
+os.environ["KMP_SETTINGS"] = "1"
+os.environ["KMP_AFFINITY"]= "granularity=fine,verbose,compact,1,0"
+
+#arch-specific stuff
+if args['arch']=='hsw':
+    num_inter_threads = 2
+    num_intra_threads = 16
+elif args['arch']=='knl':
+    num_inter_threads = 2
+    num_intra_threads = 66
+elif args['arch']=='k80':
+    #use default settings
+    p = tf.ConfigProto()
+    num_inter_threads = int(getattr(p,'INTER_OP_PARALLELISM_THREADS_FIELD_NUMBER'))
+    num_intra_threads = int(getattr(p,'INTRA_OP_PARALLELISM_THREADS_FIELD_NUMBER'))
+else:
+    raise ValueError('Please specify a valid architecture with arch (allowed values: hsw, knl.)')
+
+#set the rest
+os.environ['OMP_NUM_THREADS'] = str(num_intra_threads)
+sess_config=tf.ConfigProto(inter_op_parallelism_threads=num_inter_threads,
+                           intra_op_parallelism_threads=num_intra_threads,
+                           allow_soft_placement=True, 
+                           log_device_placement=True)
+
+print("Using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
+
+
+# # Multi-Node Stuff
+
+
+#decide who will be worker and who will be parameters server
+if args['num_tasks'] > 1:
+    args['cluster'], args['server'], args['task_index'], args['num_tasks'], args['node_type'] = sc.setup_slurm_cluster(num_ps=1)
+    if args['node_type'] == "ps":
+        args['server'].join()
+    elif args['node_type'] == "worker":
+        args['is_chief']=(args['task_index'] == 0)
+else:
+    args['node_type']="worker"
+    args['num_tasks']=1
+    args['task_index']=1
+    args['is_chief']=True
+
+
+# ## Build Network and Functions
+
+
+print("Building model")
+if args['node_type'] == 'worker':
+    args['device'] = tf.train.replica_device_setter(worker_device="/job:worker/task:%d" % args['task_index'],cluster=args['cluster'])
+    with tf.device(args['device']):
+        variables, network = bc.build_cnn_model(args)
+        pred_fn, loss_fn, accuracy_fn, auc_fn = bc.build_functions(variables, network)
+        tf.add_to_collection('pred_fn', pred_fn)
+        tf.add_to_collection('loss_fn', loss_fn)
+        print variables
+        print network
+
+
+# ## Setup Iterators
+
+# ### My Files
+
+
+if False and (args['node_type'] == 'worker'):
+    print("Setting up iterators")
+    #paths
+    args['inputpath'] = '/global/cscratch1/sd/tkurth/atlas_dl/data_delphes_final_64x64'
+    args['logpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_logs/hep_classifier_log'
+    args['modelpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_models/hep_classifier_models'
+    #training files
+    trainfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if x.startswith('hep_train') and x.endswith('.hdf5')]
+    trainset=bc.DataSet(trainfiles,args['num_tasks'],args['task_index'])
+    #validation files
+    validationfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if x.startswith('hep_valid') and x.endswith('.hdf5')]
+    validationset = bc.DataSet(validationfiles,args['num_tasks'],args['task_index'])
+
+
+# ### Evans Files
+
+
+if True and (args['node_type'] == 'worker'):
+    print("Setting up iterators")
+    #paths
+    args['inputpath'] = '/global/cscratch1/sd/wbhimji/delphes_combined_64imageNoPU'
+    args['logpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_logs/hep_classifier_log'
+    args['modelpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_models/hep_classifier_models'
+    #training files
+    trainfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if x.startswith('train_') and x.endswith('.h5')]
+    trainset = bc.DataSetEvan(trainfiles,args['num_tasks'],args['task_index'],split_filelist=False,split_file=True)
+    #validation files
+    validationfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if x.startswith('val_') and x.endswith('.h5')]
+    validationset = bc.DataSetEvan(validationfiles,args['num_tasks'],args['task_index'],split_filelist=False,split_file=True)
+
+
+# # Train Model
+
+
+#determining which model to load:
+metafilelist = [args['modelpath']+'/'+x for x in os.listdir(args['modelpath']) if x.endswith('.meta')]
+if not metafilelist:
+    #no model found, restart from scratch
+    args['restart']=True
+
+
+
+#initialize session
+if (args['node_type'] == 'worker'):
+    
+    with tf.device(args['device']):
+        
+        #a hook that will stop training at
+        hooks=[tf.train.StopAtStepHook(last_step=1000000)]
+        
+        #global step that either gets updated after any node processes a batch (async) or when all nodes process a batch for a given iteration (sync)
+        global_step = tf.contrib.framework.get_or_create_global_step()     
+        opt = tf.train.AdamOptimizer(args['learning_rate'])
+        if args['mode'] == "sync":
+            #if syncm we make a data structure that will aggregate the gradients form all tasks (one task per node in thsi case)
+            opt = tf.train.SyncReplicasOptimizer(opt, replicas_to_aggregate=num_tasks, total_num_replicas=num_tasks)
+        train_op = opt.minimize(loss_fn, global_step=global_step)
+        
+        if args["mode"] == "sync":
+            hooks.append(opt.make_session_run_hook(is_chief=args['is_chief']))
+        
+    
+    print("Start training")
+    with tf.train.MonitoredTrainingSession(config=sess_config, 
+                                           is_chief=args["is_chief"], 
+                                           master=server.target,
+                                           checkpoint_dir=args['modelpath'],
+                                           hooks=hooks) as sess:
+    
+        #create summaries
+        var_summary = []
+        for item in variables:
+            var_summary.append(tf.summary.histogram(item,variables[item]))
+        summary_loss = tf.summary.scalar("loss",loss_fn)
+        summary_accuracy = tf.summary.scalar("accuracy",accuracy_fn)
+        train_summary = tf.summary.merge([summary_loss]+var_summary)
+        validation_summary = tf.summary.merge([summary_loss])
+        train_writer = tf.summary.FileWriter(logpath, sess.graph)
+        
+        # Add an op to initialize the variables.
+        init_global_op = tf.global_variables_initializer()
+        init_local_op = tf.local_variables_initializer()
+    
+        #saver class:
+        model_saver = tf.train.Saver()
+    
+        #initialize variables
+        sess.run([init_global_op, init_local_op])
+    
+        #do the training loop
+        train_loop(sess,args,trainset,validationset)
 
 
 
