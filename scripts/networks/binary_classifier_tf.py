@@ -179,7 +179,7 @@ class DataSetEvan(object):
         self._num_files = len(filelist)
         start = 0
         end = self._num_files
-        if split_filelist:
+        if self._split_filelist:
             self._num_files = int(np.floor(len(filelist)/float(self._num_tasks)))
             start = self._taskid * self._num_files
             end = start + self._num_files
@@ -244,14 +244,14 @@ def build_cnn_model(args):
     variables={}
     
     #create placeholders
-    variables['images_'] = tf.placeholder(tf.float32, shape=args['input_shape'])
+    variables['images_'] = tf.placeholder(tf.float32, shape=[args['train_batch_size']]+args['input_shape'])
     variables['keep_prob_'] = tf.placeholder(tf.float32)
     
     #empty network:
     network = []
     
     #input layer
-    network.append(tf.reshape(variables['images_'], [-1]+args['input_shape'][1:], name='input'))
+    network.append(tf.reshape(variables['images_'], [-1]+args['input_shape'], name='input'))
     
     #get all the conv-args stuff:
     activation=args['conv_params']['activation']
@@ -357,10 +357,11 @@ def build_cnn_model(args):
 
 
 #build the functions
-def build_functions(variables, network):
-    #add additional variables
-    variables['labels_']=tf.placeholder(tf.int32,shape=[None,1])
-    variables['weights_']=tf.placeholder(tf.float32,shape=[None,1])
+def build_functions(args,variables,network):
+    
+    #additional variables
+    variables['labels_']=tf.placeholder(tf.int32,shape=[args['train_batch_size'],1])
+    variables['weights_']=tf.placeholder(tf.float32,shape=[args['train_batch_size'],1])
     
     #loss function
     prediction = network[-1]
@@ -386,7 +387,7 @@ def build_functions(variables, network):
                          name='AUC')
     
     #get loss
-    return prediction, loss, accuracy, auc
+    return variables, prediction, loss, accuracy, auc
 
 
 

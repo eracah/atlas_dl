@@ -57,7 +57,7 @@ def train_loop(sess,train_step,args,trainset,validationset):
         total_batches+=1
         
         #get next batch
-        images,labels,normweights,_ = trainset.next_batch(args['train_batch_size'])  
+        images,labels,normweights,_ = trainset.next_batch(args['train_batch_size'])
         #set weights to zero
         normweights[:] = 1.
         
@@ -189,10 +189,10 @@ def train_loop(sess,train_step,args,trainset,validationset):
 # # Global Parameters
 
 
-args={'input_shape': [None, 1, 64, 64], 
-                      'arch' : 'knl',
+args={'input_shape': [1, 64, 64], 
+                      'arch' : 'hsw',
                       'mode': "sync",
-                      'num_tasks': 3,
+                      'num_tasks': 9,
                       'display_interval': 10,
                       'save_interval': 1,
                       'learning_rate': 1.e-5, 
@@ -202,8 +202,8 @@ args={'input_shape': [None, 1, 64, 64],
                       'num_layers': 3,
                       'momentum': 0.9,
                       'num_epochs': 200,
-                      'train_batch_size': 512, #480
-                      'validation_batch_size': 320, #480
+                      'train_batch_size': 64, #480
+                      'validation_batch_size': 64, #480
                       'batch_norm': True,
                       'time': True,
                       'restart': False,
@@ -212,39 +212,6 @@ args={'input_shape': [None, 1, 64, 64],
                                        activation=tf.nn.relu, 
                                        initializer=tfk.initializers.he_normal())
                      }
-
-
-# # On-Node Stuff
-
-
-#common stuff
-os.environ["KMP_BLOCKTIME"] = "1"
-os.environ["KMP_SETTINGS"] = "1"
-os.environ["KMP_AFFINITY"]= "granularity=fine,verbose,compact,1,0"
-
-#arch-specific stuff
-if args['arch']=='hsw':
-    num_inter_threads = 2
-    num_intra_threads = 16
-elif args['arch']=='knl':
-    num_inter_threads = 2
-    num_intra_threads = 66
-elif args['arch']=='k80':
-    #use default settings
-    p = tf.ConfigProto()
-    num_inter_threads = int(getattr(p,'INTER_OP_PARALLELISM_THREADS_FIELD_NUMBER'))
-    num_intra_threads = int(getattr(p,'INTRA_OP_PARALLELISM_THREADS_FIELD_NUMBER'))
-else:
-    raise ValueError('Please specify a valid architecture with arch (allowed values: hsw, knl.)')
-
-#set the rest
-os.environ['OMP_NUM_THREADS'] = str(num_intra_threads)
-sess_config=tf.ConfigProto(inter_op_parallelism_threads=num_inter_threads,
-                           intra_op_parallelism_threads=num_intra_threads,
-                           allow_soft_placement=True, 
-                           log_device_placement=True)
-
-print("Using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
 
 
 # # Multi-Node Stuff
@@ -265,19 +232,53 @@ else:
     args['is_chief']=True
 
 
+# # On-Node Stuff
+
+
+if (args['node_type'] == 'worker'):
+    #common stuff
+    os.environ["KMP_BLOCKTIME"] = "1"
+    os.environ["KMP_SETTINGS"] = "1"
+    os.environ["KMP_AFFINITY"]= "granularity=fine,compact,1,0"
+
+    #arch-specific stuff
+    if args['arch']=='hsw':
+        num_inter_threads = 2
+        num_intra_threads = 16
+    elif args['arch']=='knl':
+        num_inter_threads = 2
+        num_intra_threads = 66
+    elif args['arch']=='k80':
+        #use default settings
+        p = tf.ConfigProto()
+        num_inter_threads = int(getattr(p,'INTER_OP_PARALLELISM_THREADS_FIELD_NUMBER'))
+        num_intra_threads = int(getattr(p,'INTRA_OP_PARALLELISM_THREADS_FIELD_NUMBER'))
+    else:
+        raise ValueError('Please specify a valid architecture with arch (allowed values: hsw, knl.)')
+
+    #set the rest
+    os.environ['OMP_NUM_THREADS'] = str(num_intra_threads)
+    sess_config=tf.ConfigProto(inter_op_parallelism_threads=num_inter_threads,
+                               intra_op_parallelism_threads=num_intra_threads,
+                               allow_soft_placement=True)
+                               #log_device_placement=True)
+
+    print("Rank",args['task_index'],": using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
+
+
 # ## Build Network and Functions
 
 
-print("Building model")
 if args['node_type'] == 'worker':
+    print("Rank",args["task_index"],":","Building model")
     args['device'] = tf.train.replica_device_setter(worker_device="/job:worker/task:%d" % args['task_index'],cluster=args['cluster'])
     with tf.device(args['device']):
         variables, network = bc.build_cnn_model(args)
-        pred_fn, loss_fn, accuracy_fn, auc_fn = bc.build_functions(variables, network)
+        variables, pred_fn, loss_fn, accuracy_fn, auc_fn = bc.build_functions(args,variables,network)
         tf.add_to_collection('pred_fn', pred_fn)
         tf.add_to_collection('loss_fn', loss_fn)
-        print variables
-        print network
+        print "Rank",args["task_index"],":",variables
+        print "Rank",args["task_index"],":",network
 
 
 # ## Setup Iterators
@@ -286,7 +287,7 @@ if args['node_type'] == 'worker':
 
 
 if False and (args['node_type'] == 'worker'):
-    print("Setting up iterators")
+    print("Rank",args["task_index"],":","Setting up iterators")
     #paths
     args['inputpath'] = '/global/cscratch1/sd/tkurth/atlas_dl/data_delphes_final_64x64'
     args['logpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_logs/hep_classifier_log'
@@ -303,7 +304,7 @@ if False and (args['node_type'] == 'worker'):
 
 
 if True and (args['node_type'] == 'worker'):
-    print("Setting up iterators")
+    print("Rank",args["task_index"],":","Setting up iterators")
     #paths
     args['inputpath'] = '/global/cscratch1/sd/wbhimji/delphes_combined_64imageNoPU'
     args['logpath'] = '/project/projectdirs/mpccc/tkurth/MANTISSA-HEP/atlas_dl/temp/tensorflow_logs/hep_classifier_log'
@@ -364,11 +365,11 @@ if (args['node_type'] == 'worker'):
         model_saver = tf.train.Saver()
         
     
-    print("Start training")
+    print("Rank",args["task_index"],": starting training")
     with tf.train.MonitoredTrainingSession(config=sess_config, 
                                            is_chief=args["is_chief"],
                                            master=args['server'].target,
-                                           checkpoint_dir=args['modelpath'],
+                                           #checkpoint_dir=args['modelpath'],
                                            hooks=hooks) as sess:
     
         #create summaries
