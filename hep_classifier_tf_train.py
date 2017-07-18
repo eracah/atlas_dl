@@ -57,7 +57,7 @@ def train_loop(sess,train_step,args,trainset,validationset):
         total_batches+=1
         
         #get next batch
-        images,labels,normweights,_ = trainset.next_batch(args['train_batch_size'])
+        images,labels,normweights,_ = trainset.next_batch(args['train_batch_size_per_node'])
         #set weights to zero
         normweights[:] = 1.
         
@@ -116,7 +116,7 @@ def train_loop(sess,train_step,args,trainset,validationset):
             #iterate over batches
             while True:
                 #get next batch
-                images,labels,normweights,weights = validationset.next_batch(args['validation_batch_size'])
+                images,labels,normweights,weights = validationset.next_batch(args['validation_batch_size_per_node'])
                 #set weights to 1:
                 normweights[:] = 1.
                 weights[:] = 1.
@@ -192,7 +192,8 @@ def train_loop(sess,train_step,args,trainset,validationset):
 args={'input_shape': [1, 64, 64], 
                       'arch' : 'hsw',
                       'mode': "sync",
-                      'num_tasks': 9,
+                      'num_tasks': 5,
+                      'num_ps': 1,
                       'display_interval': 10,
                       'save_interval': 1,
                       'learning_rate': 1.e-5, 
@@ -202,10 +203,11 @@ args={'input_shape': [1, 64, 64],
                       'num_layers': 3,
                       'momentum': 0.9,
                       'num_epochs': 200,
-                      'train_batch_size': 64, #480
-                      'validation_batch_size': 64, #480
-                      'batch_norm': True,
+                      'train_batch_size': 512, #480
+                      'validation_batch_size': 512, #480
+                      'batch_norm': False,
                       'time': True,
+                      'create_summary': False,
                       'restart': False,
                       'conv_params': dict(num_filters=128, 
                                        filter_size=3, padding='SAME', 
@@ -218,18 +220,24 @@ args={'input_shape': [1, 64, 64],
 
 
 #decide who will be worker and who will be parameters server
-args['create_summary']=True
 if args['num_tasks'] > 1:
-    args['cluster'], args['server'], args['task_index'], args['num_tasks'], args['node_type'] = sc.setup_slurm_cluster(num_ps=1)
+    args['cluster'], args['server'], args['task_index'], args['num_tasks'], args['node_type'] = sc.setup_slurm_cluster(num_ps=args['num_ps'])
     if args['node_type'] == "ps":
         args['server'].join()
     elif args['node_type'] == "worker":
         args['is_chief']=(args['task_index'] == 0)
+    args['target']=args['server'].target
 else:
-    args['node_type']="worker"
-    args['num_tasks']=1
-    args['task_index']=1
+    args['cluster']=None
+    args['server']=None
+    args['task_index']=0
+    args['node_type']='worker'
     args['is_chief']=True
+    args['target']=''
+    
+#general stuff
+args["train_batch_size_per_node"]=args["train_batch_size"]/(args["num_tasks"]-args["num_ps"])
+args["validation_batch_size_per_node"]=args["validation_batch_size"]/(args["num_tasks"]-args["num_ps"])
 
 
 # # On-Node Stuff
@@ -368,7 +376,7 @@ if (args['node_type'] == 'worker'):
     print("Rank",args["task_index"],": starting training")
     with tf.train.MonitoredTrainingSession(config=sess_config, 
                                            is_chief=args["is_chief"],
-                                           master=args['server'].target,
+                                           master=args['target'],
                                            #checkpoint_dir=args['modelpath'],
                                            hooks=hooks) as sess:
     

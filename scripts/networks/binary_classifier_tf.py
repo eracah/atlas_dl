@@ -244,7 +244,7 @@ def build_cnn_model(args):
     variables={}
     
     #create placeholders
-    variables['images_'] = tf.placeholder(tf.float32, shape=[args['train_batch_size']]+args['input_shape'])
+    variables['images_'] = tf.placeholder(tf.float32, shape=[args['train_batch_size_per_node']]+args['input_shape'])
     variables['keep_prob_'] = tf.placeholder(tf.float32)
     
     #empty network:
@@ -360,8 +360,8 @@ def build_cnn_model(args):
 def build_functions(args,variables,network):
     
     #additional variables
-    variables['labels_']=tf.placeholder(tf.int32,shape=[args['train_batch_size'],1])
-    variables['weights_']=tf.placeholder(tf.float32,shape=[args['train_batch_size'],1])
+    variables['labels_']=tf.placeholder(tf.int32,shape=[args['train_batch_size_per_node'],1])
+    variables['weights_']=tf.placeholder(tf.float32,shape=[args['train_batch_size_per_node'],1])
     
     #loss function
     prediction = network[-1]

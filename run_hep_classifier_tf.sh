@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -p regular
 #SBATCH -A nstaff
-#SBATCH -N 1
+#SBATCH -N 5
 #SBATCH -C haswell
 #SBATCH -t 8:00:00
 #SBATCH -J hep_train_tf
@@ -12,4 +12,4 @@
 #export OMP_PLACES=threads
 #export OMP_PROC_BIND=spread
 
-python hep_classifier_tf_train.py
+srun -n 5 -c 64 -u python hep_classifier_tf_train.py
