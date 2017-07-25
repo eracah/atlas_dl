@@ -136,7 +136,7 @@ def train_loop(sess,train_step,args,trainset,validationset):
                                                 variables['keep_prob_']: 1.0})
                 
                 #add loss
-                validation_loss += tmp_loss
+                validation_loss += tmp_loss[0]
                 validation_batches += 1
                 
                 #update accuracy
@@ -192,8 +192,8 @@ def train_loop(sess,train_step,args,trainset,validationset):
 args={'input_shape': [1, 64, 64], 
                       'arch' : 'hsw',
                       'mode': "sync",
-                      'num_tasks': 5,
-                      'num_ps': 1,
+                      'num_tasks': 1,
+                      'num_ps': 0,
                       'display_interval': 10,
                       'save_interval': 1,
                       'learning_rate': 1.e-5, 
